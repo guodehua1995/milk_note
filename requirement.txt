@@ -1,5 +1,0 @@
-langchain 
-langchain-community
-python-dotenv
-dashscope
-mysqlclient >= 1.4.3
