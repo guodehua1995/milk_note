@@ -1,4 +1,5 @@
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 import os
 
 # 更安全地获取环境变量，如果不存在则提示错误
@@ -19,7 +20,6 @@ chatLLM = ChatOpenAI(
 messages = [
     {"role": "system", "content": "You are a helpful assistant."},
     {"role": "user", "content": "你是谁？"}]
-response = chatLLM.invoke(messages)
-print(response.json())
+chatLLM.invoke([HumanMessage(content="Hi! I'm Bob")])
 
 
