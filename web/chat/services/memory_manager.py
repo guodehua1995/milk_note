@@ -47,21 +47,42 @@ class MemoryManager:
         
         self.user_profile.save()
     
-    def get_user_conversations(self, limit=20, include_messages=False):
-        """获取用户的所有会话
+    def get_user_conversations(self, limit=20, include_messages=False, page=1, page_size=None):
+        """获取用户的所有会话，支持分页查询
         
         Args:
-            limit: 限制返回会话数量
+            limit: 限制返回会话数量（已弃用，建议使用page_size）
             include_messages: 是否包含消息内容
+            page: 页码，默认为1
+            page_size: 每页大小，如果为None则使用limit值
             
         Returns:
-            list: 会话列表
+            dict: 包含分页信息和会话列表的字典
         """
-        conversations = Conversation.objects.filter(
-            user_id=self.user_id
-        ).order_by('-updated_at')[:limit]
+        # 使用page_size，如果未提供则使用limit
+        if page_size is None:
+            page_size = limit
+            
+        # 确保页码至少为1
+        page = max(1, page)
         
-        result = []
+        # 获取查询集（不立即执行）
+        queryset = Conversation.objects.filter(user_id=self.user_id)
+        
+        # 获取总数
+        total_count = queryset.count()
+        
+        # 计算总页数
+        total_pages = (total_count + page_size - 1) // page_size
+        
+        # 计算偏移量
+        offset = (page - 1) * page_size
+        
+        # 获取当前页的数据
+        conversations = queryset.order_by('-updated_at')[offset:offset + page_size]
+        
+        # 处理数据
+        items = []
         for conv in conversations:
             conv_data = {
                 "id": conv.id,
@@ -81,9 +102,20 @@ class MemoryManager:
                     } for msg in messages
                 ]
             
-            result.append(conv_data)
+            items.append(conv_data)
         
-        return result
+        # 返回包含分页信息的结果
+        return {
+            "items": items,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_count,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        }
     
     def summarize_conversation(self, conversation_id):
         """将会话总结添加到长期记忆"""
