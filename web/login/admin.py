@@ -33,8 +33,9 @@ class UserAdmin(BaseUserAdmin):
         (None, {'fields': ('username', 'email', 'password')}),
         ('个人信息', {'fields': ('first_name', 'last_name', 'phone_number')}),
         ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('重要日期', {'fields': ('last_login', 'date_joined')}),
+        ('重要日期', {'fields': ('last_login',), 'classes': ('wide',)}),
     )
+    readonly_fields = ('date_joined',)
     
     add_fieldsets = (
         (None, {

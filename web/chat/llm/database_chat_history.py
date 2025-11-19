@@ -12,7 +12,7 @@ class DatabaseChatMessageHistory(BaseChatMessageHistory):
         """初始化数据库聊天历史
         
         Args:
-            user_id: 用户标识
+            user_id: 用户ID
             conversation_id: 会话ID，如果为None则创建新会话
             create_if_not_exists: 如果会话不存在是否创建新会话
         """
@@ -21,6 +21,7 @@ class DatabaseChatMessageHistory(BaseChatMessageHistory):
         
         if conversation_id:
             try:
+                # 使用正确的外键查询语法
                 self.conversation = Conversation.objects.get(id=conversation_id, user_id=user_id)
             except Conversation.DoesNotExist:
                 if create_if_not_exists:
@@ -30,6 +31,7 @@ class DatabaseChatMessageHistory(BaseChatMessageHistory):
     
     def _create_new_conversation(self):
         """创建新的会话"""
+        # 使用正确的外键关联方式
         return Conversation.objects.create(
             user_id=self.user_id,
             title=f"新对话-{timezone.now().strftime('%Y%m%d%H%M%S')}"

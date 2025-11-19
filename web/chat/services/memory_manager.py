@@ -1,4 +1,4 @@
-from chat.models import UserProfile, Conversation, ChatMessage
+from chat.models import UserChatProfile, Conversation, ChatMessage
 from chat.llm.database_chat_history import DatabaseChatMessageHistory
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -13,9 +13,11 @@ class MemoryManager:
     def _ensure_user_profile(self):
         """确保用户配置文件存在"""
         try:
-            self.user_profile = UserProfile.objects.get(user_id=self.user_id)
-        except UserProfile.DoesNotExist:
-            self.user_profile = UserProfile.objects.create(user_id=self.user_id)
+            # 使用正确的外键查询语法
+            self.user_profile = UserChatProfile.objects.get(user_id=self.user_id)
+        except UserChatProfile.DoesNotExist:
+            # 创建新的用户配置文件
+            self.user_profile = UserChatProfile.objects.create(user_id=self.user_id)
     
     def get_short_term_memory(self, conversation_id=None):
         """获取短期记忆（当前会话）
@@ -66,7 +68,7 @@ class MemoryManager:
         # 确保页码至少为1
         page = max(1, page)
         
-        # 获取查询集（不立即执行）
+        # 获取查询集（不立即执行），使用正确的外键查询语法
         queryset = Conversation.objects.filter(user_id=self.user_id)
         
         # 获取总数
@@ -120,6 +122,7 @@ class MemoryManager:
     def summarize_conversation(self, conversation_id):
         """将会话总结添加到长期记忆"""
         try:
+            # 使用正确的外键查询语法
             conversation = Conversation.objects.get(id=conversation_id, user_id=self.user_id)
             
             # 获取会话中的最近消息（如最近10条）

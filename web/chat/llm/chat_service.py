@@ -48,17 +48,19 @@ class LangChainChatService:
             history_messages_key="chat_history"
         )
     
-    def chat(self, user_id, input_text, conversation_id=None, metadata=None):
-        """处理聊天请求
+    def chat(self, user_id, input_text, conversation_id=None, metadata=None, stream=False):
+        """处理聊天请求，支持流式输出
         
         Args:
             user_id: 用户ID
             input_text: 用户输入文本
             conversation_id: 会话ID
             metadata: 元数据
+            stream: 是否启用流式输出，默认为False
             
         Returns:
-            dict: 包含回复和会话信息的字典
+            如果stream=False，返回dict: 包含回复和会话信息的字典
+            如果stream=True，返回生成器: 逐个产生响应片段
         """
         # 获取长期记忆，添加到系统消息中
         from chat.services.memory_manager import MemoryManager
@@ -84,12 +86,6 @@ class LangChainChatService:
             history_messages_key="chat_history"
         )
         
-        # 调用链获取回复
-        response = chain_with_history.invoke(
-            {"input": input_text},
-            config={"configurable": {"session_id": str(conversation_id or "default")}}
-        )
-        
         # 获取会话ID
         conversation = memory_manager.get_short_term_memory(conversation_id)
         
@@ -100,11 +96,51 @@ class LangChainChatService:
             # conversation.update_conversation_title(title)
             pass
         
-        return {
-            "response": response.content,
-            "conversation_id": conversation.get_conversation_id(),
-            "metadata": metadata
-        }
+        conversation_id_result = conversation.get_conversation_id()
+        
+        # 非流式输出
+        if not stream:
+            response = chain_with_history.invoke(
+                {"input": input_text},
+                config={"configurable": {"session_id": str(conversation_id or "default")}}
+            )
+            return {
+                "response": response.content,
+                "conversation_id": conversation_id_result,
+                "metadata": metadata
+            }
+        
+        # 流式输出 - 返回生成器
+        def stream_generator():
+            # 使用stream方法获取流式响应
+            stream_response = chain_with_history.stream(
+                {"input": input_text},
+                config={"configurable": {"session_id": str(conversation_id or "default")}}
+            )
+            
+            full_response = ""
+            # 逐个生成响应片段
+            for chunk in stream_response:
+                if hasattr(chunk, 'content'):
+                    chunk_content = chunk.content
+                    full_response += chunk_content
+                    yield {
+                        "chunk": chunk_content,
+                        "conversation_id": conversation_id_result,
+                        "metadata": metadata,
+                        "is_complete": False
+                    }
+            
+            # 生成最后一个完整的响应
+            yield {
+                "chunk": "",  # 空内容表示结束
+                "conversation_id": conversation_id_result,
+                "metadata": metadata,
+                "is_complete": True,
+                "full_response": full_response
+            }
+        
+        return stream_generator()
     
     def _generate_personalized_system_prompt(self, long_term_memory):
         """生成个性化的系统提示词"""

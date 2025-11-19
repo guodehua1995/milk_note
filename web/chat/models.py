@@ -39,8 +39,8 @@ class ChatMessage(models.Model):
     def __str__(self):
         return f"{self.role}: {self.content[:50]}"
 
-class UserProfile(models.Model):
-    """用户配置文件，存储用户的长期记忆"""
+class UserChatProfile(models.Model):
+    """用户聊天配置文件，存储用户的长期记忆"""
     # 使用自定义User模型关联，设置null=True以兼容现有数据
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, related_name='chat_profile', help_text="关联用户")
     name = models.CharField(max_length=100, null=True, blank=True, help_text="用户名称")

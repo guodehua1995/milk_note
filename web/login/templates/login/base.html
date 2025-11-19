@@ -67,6 +67,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'index' %}">首页</a>
                     </li>
+                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'chat:preferences' %}">聊天偏好设置</a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
