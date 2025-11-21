@@ -60,7 +60,6 @@ def chat(request):
             # 创建流式响应
             response = StreamingHttpResponse(stream_generator(), content_type='text/event-stream')
             response['Cache-Control'] = 'no-cache'
-            response['Connection'] = 'keep-alive'
             return response
             
         except json.JSONDecodeError:

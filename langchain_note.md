@@ -1,0 +1,2 @@
+# 流式输出如何实现自动保存到数据库？
+主流程是通过BaseChatMessageHistory来实现的
