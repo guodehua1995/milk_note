@@ -212,8 +212,20 @@
         
         <!-- 助理姓名字段 -->
         <div class="form-group">
-            <label for="assistant_name">👤 您的助手昵称</label>
+            <label for="id_assistant_name">👤 您的助手昵称</label>
             {{ form.assistant_name }}
+        </div>
+        
+        <!-- 注意事项字段 -->
+        <div class="form-group">
+            <label for="id_extra_notice">⚠️ 注意事项</label>
+            {{ form.extra_notice }}
+        </div>
+        
+        <!-- 记忆要点字段 -->
+        <div class="form-group">
+            <label for="id_key_points">🧠 记忆要点</label>
+            {{ form.key_points }}
         </div>
 
         <!-- 聊天偏向选择 -->

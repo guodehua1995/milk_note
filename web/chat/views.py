@@ -267,6 +267,26 @@ class ChatPreferenceForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入您的昵称'})
     )
     
+    assistant_name = forms.CharField(
+        label='您的助手昵称',
+        max_length=10,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入助手昵称'})
+    )
+    
+    extra_notice = forms.CharField(
+        label='注意事项',
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入注意事项'})
+    )
+    
+    key_points = forms.CharField(
+        label='记忆要点',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': '请输入记忆要点', 'rows': 3})
+    )
+    
     # 使用隐藏字段存储偏好设置JSON数据
     preferences = forms.CharField(widget=forms.HiddenInput, required=False)
     
@@ -369,14 +389,22 @@ class ChatPreferenceView(LoginRequiredMixin, FormView):
         try:
             # 获取用户的聊天配置文件
             chat_profile = UserChatProfile.objects.get(user=user)
-            print(f"获取到用户自定义配置:{chat_profile.preferences}")
             # 设置初始昵称
             initial['name'] = chat_profile.name
+            # 设置初始助手昵称
+            initial['assistant_name'] = chat_profile.assistant_name
+            # 设置初始注意事项
+            initial['extra_notice'] = chat_profile.extra_notice
+            # 设置初始记忆要点
+            initial['key_points'] = chat_profile.key_points
             # 设置初始偏好设置
-            initial['preferences'] = json.dumps(chat_profile.preferences or {}) if chat_profile.preferences else '{}'
+            initial['preferences'] = json.dumps({'style': chat_profile.style}) if chat_profile.style else '{}'
         except UserChatProfile.DoesNotExist:
             # 如果用户没有聊天配置文件，使用默认值
             initial['name'] = ''
+            initial['assistant_name'] = '助手'
+            initial['extra_notice'] = ''
+            initial['key_points'] = ''
             initial['preferences'] = json.dumps({'style': 'general'})
         
         return initial
@@ -387,16 +415,25 @@ class ChatPreferenceView(LoginRequiredMixin, FormView):
         """
         user = self.request.user
         name = form.cleaned_data.get('name')
+        assistant_name = form.cleaned_data.get('assistant_name')
+        extra_notice = form.cleaned_data.get('extra_notice')
+        key_points = form.cleaned_data.get('key_points')
         preferences = form.cleaned_data.get('preferences')
         
         # 解析preferences JSON字符串
         preferences_dict = json.loads(preferences) if preferences else {}
         
+        # 获取风格设置
+        style = preferences_dict.get('style', 'general')
+        
         # 使用MemoryManager更新用户配置文件
         memory_manager = MemoryManager(user.id)
         memory_manager.update_user_profile(
             name=name,
-            preferences=preferences_dict
+            assistant_name=assistant_name,
+            extra_notice=extra_notice,
+            key_points=key_points,
+            style=style
         )
         
         # 表单提交成功后重定向到当前页面，显示更新后的设置

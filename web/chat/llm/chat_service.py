@@ -167,6 +167,9 @@ class LangChainChatService:
         if long_term_memory.get("name"):
             base_prompt += f"\n用户的名字是{long_term_memory['name']}。"
         
+        if long_term_memory.get("assistant_name"):
+            base_prompt += f"\n你的名字是{long_term_memory['assistant_name']}。"
+
         if long_term_memory.get("key_points"):
             base_prompt += f"\n以下是关于用户的重要信息：{long_term_memory['key_points']}"
         
