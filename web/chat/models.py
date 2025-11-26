@@ -44,7 +44,9 @@ class UserChatProfile(models.Model):
     # 使用自定义User模型关联，设置null=True以兼容现有数据
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, related_name='chat_profile', help_text="关联用户")
     name = models.CharField(max_length=100, null=True, blank=True, help_text="用户名称")
-    preferences = models.JSONField(default=dict, help_text="用户偏好设置")
+    style = models.CharField(max_length=20, default='general', help_text="聊天风格")
+    assistant_name = models.CharField(max_length=10, default='助手', help_text="助手名称")
+    extra_notice = models.CharField(max_length=200, blank=True, null=True, help_text="注意事项")
     key_points = models.TextField(null=True, blank=True, help_text="记忆要点")
     created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
     updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")

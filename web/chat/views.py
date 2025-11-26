@@ -1,3 +1,5 @@
+import json
+import logging
 from django.http import JsonResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -10,12 +12,17 @@ from chat.services.memory_manager import MemoryManager
 from chat.llm.chat_service import LangChainChatService
 from chat.models import UserChatProfile
 
+# 配置日志
+logger = logging.getLogger(__name__)
+
 @csrf_exempt
 def chat(request):
     """聊天接口，支持流式输出"""
     if request.method == 'POST':
         try:
+            logger.info("收到聊天请求")
             data = json.loads(request.body)
+            logger.info(f"请求数据: {data}")
             # 优先使用已认证用户的id，保持向后兼容
             user_id = None
             if request.user.is_authenticated:
@@ -27,15 +34,37 @@ def chat(request):
             conversation_id = data.get('conversation_id')
             stream = data.get('stream', False)  # 是否使用流式输出
             
+            logger.info(f"用户ID: {user_id}, 消息: {message}, 会话ID: {conversation_id}, 流式: {stream}")
+            
             if not user_id or not message:
+                logger.error("缺少必要参数")
                 return JsonResponse({'error': '缺少必要参数'}, status=400)
             
             # 调用聊天服务
             chat_service = LangChainChatService()
+            logger.info("已创建聊天服务实例")
             
             # 非流式输出
             if not stream:
+                logger.info("开始非流式聊天处理")
                 result = chat_service.chat(user_id, message, conversation_id)
+                logger.info("非流式输出结果: %s", result)
+                logger.info("结果类型: %s", type(result))
+                
+                # 检查result中的每个字段
+                if isinstance(result, dict):
+                    for key, value in result.items():
+                        logger.info("字段 %s 的类型: %s, 值: %s", key, type(value), value)
+                
+                # 尝试手动序列化结果
+                try:
+                    import json as json_module
+                    json_module.dumps(result)
+                    logger.info("结果可以被JSON序列化")
+                except Exception as serialize_error:
+                    logger.error("结果无法被JSON序列化: %s", str(serialize_error))
+                    return JsonResponse({'error': f'序列化错误: {str(serialize_error)}'}, status=500)
+                
                 return JsonResponse(result)
             
             # 流式输出 - 使用StreamingHttpResponse
@@ -46,9 +75,23 @@ def chat(request):
                     
                     # 逐个发送每个响应片段
                     for chunk_data in stream_response:
-                        # 发送SSE格式的数据
-                        chunk_json = json.dumps(chunk_data, ensure_ascii=False)
-                        yield f"data: {chunk_json}\n\n"
+                        # 确保chunk_data是字典格式
+                        if isinstance(chunk_data, dict):
+                            # 发送SSE格式的数据
+                            chunk_json = json.dumps(chunk_data, ensure_ascii=False)
+                            yield f"data: {chunk_json}\n\n"
+                        else:
+                            # 如果不是字典，尝试转换
+                            try:
+                                chunk_dict = chunk_data if isinstance(chunk_data, dict) else {"chunk": str(chunk_data)}
+                                chunk_json = json.dumps(chunk_dict, ensure_ascii=False)
+                                yield f"data: {chunk_json}\n\n"
+                            except Exception as convert_error:
+                                error_data = json.dumps({
+                                    'error': f"数据转换错误: {str(convert_error)}",
+                                    'is_complete': True
+                                }, ensure_ascii=False)
+                                yield f"data: {error_data}\n\n"
                 except Exception as e:
                     # 发生错误时发送错误信息
                     error_data = json.dumps({

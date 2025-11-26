@@ -2,7 +2,12 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
+
 import os
+import logging
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 class LangChainChatService:
     """LangChain聊天服务，集成数据库存储和LLM"""
@@ -67,6 +72,8 @@ class LangChainChatService:
         memory_manager = MemoryManager(user_id)
         long_term_memory = memory_manager.get_long_term_memory()
         
+        logger.info(f"获取到长期记忆: {long_term_memory}")
+        
         # 更新系统提示，包含用户的长期记忆
         system_prompt = self._generate_personalized_system_prompt(long_term_memory)
         
@@ -104,10 +111,15 @@ class LangChainChatService:
                 {"input": input_text},
                 config={"configurable": {"session_id": str(conversation_id or "default")}}
             )
+            # 确保所有字段都是可序列化的
+            response_content = response.content if hasattr(response, 'content') else str(response)
+            conversation_id_str = str(conversation_id_result) if conversation_id_result else None
+            metadata_dict = metadata if isinstance(metadata, dict) else {}
+            
             return {
-                "response": response.content,
-                "conversation_id": conversation_id_result,
-                "metadata": metadata
+                "response": response_content,
+                "conversation_id": conversation_id_str,
+                "metadata": metadata_dict
             }
         
         # 流式输出 - 返回生成器
@@ -126,16 +138,16 @@ class LangChainChatService:
                     full_response += chunk_content
                     yield {
                         "chunk": chunk_content,
-                        "conversation_id": conversation_id_result,
-                        "metadata": metadata,
+                        "conversation_id": str(conversation_id_result),  # 确保是字符串
+                        "metadata": metadata if metadata is not None else {},  # 确保是字典
                         "is_complete": False
                     }
             
             # 生成最后一个完整的响应
             yield {
                 "chunk": "",  # 空内容表示结束
-                "conversation_id": conversation_id_result,
-                "metadata": metadata,
+                "conversation_id": str(conversation_id_result),  # 确保是字符串
+                "metadata": metadata if metadata is not None else {},  # 确保是字典
                 "is_complete": True,
                 "full_response": full_response
             }
@@ -144,6 +156,7 @@ class LangChainChatService:
     
     def _generate_personalized_system_prompt(self, long_term_memory):
         """生成个性化的系统提示词"""
+
         base_prompt = "你是一个有帮助的个人助理。请根据用户的提问和对话历史提供有用的回答。"
         
         if long_term_memory.get("name"):
@@ -152,9 +165,10 @@ class LangChainChatService:
         if long_term_memory.get("key_points"):
             base_prompt += f"\n以下是关于用户的重要信息：{long_term_memory['key_points']}"
         
-        if long_term_memory.get("preferences"):
-            base_prompt += f"\n用户的偏好设置：{str(long_term_memory['preferences'])}"
+        if long_term_memory.get("style_prompt"):
+            base_prompt += f"\n请以{long_term_memory['style_prompt']}的风格回答,注意:重点是回答用户问题而不是模仿人设,禁止因模仿人设而添加过多的元素导致对话出现不真实感。"
         
+        logger.info(f"生成的系统提示词: {base_prompt}")
         return base_prompt
     
     def _generate_conversation_title(self, user_input, ai_response):
