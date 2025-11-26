@@ -20,11 +20,11 @@ User = get_user_model()
 def index(request):
     """
     登录应用首页
-    如果用户已登录，重定向到个人信息页面
+    如果用户已登录，重定向到聊天页面
     否则重定向到登录页面
     """
     if request.user.is_authenticated:
-        return redirect('login:profile')
+        return redirect('chat:chat')
     return redirect('login:login')
 
 
@@ -34,7 +34,7 @@ def login_view(request):
     处理用户登录请求，支持记住我功能
     """
     if request.user.is_authenticated:
-        return redirect('login:profile')
+        return redirect('chat:chat')
     
     if request.method == 'POST':
         form = CustomAuthenticationForm(request, data=request.POST)
@@ -58,7 +58,7 @@ def login_view(request):
                     request.session.set_expiry(0)  # 浏览器关闭时过期
                 
                 # 检查是否有next参数
-                next_url = request.GET.get('next', 'login:profile')
+                next_url = request.GET.get('next', 'chat:chat')
                 return redirect(next_url)
         else:
             messages.error(request, '用户名或密码错误，请重试')
@@ -74,7 +74,7 @@ def register_view(request):
     处理新用户注册请求
     """
     if request.user.is_authenticated:
-        return redirect('login:profile')
+        return redirect('chat:chat')
     
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -83,7 +83,7 @@ def register_view(request):
             # 自动登录新创建的用户
             auth_login(request, user)
             messages.success(request, '注册成功，欢迎使用！')
-            return redirect('login:profile')
+            return redirect('chat:chat')
         else:
             messages.error(request, '注册失败，请检查表单信息')
     else:

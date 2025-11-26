@@ -53,7 +53,7 @@ class LangChainChatService:
             history_messages_key="chat_history"
         )
     
-    def chat(self, user_id, input_text, conversation_id=None, metadata=None, stream=False):
+    def chat(self, user_id, input_text, conversation_id=None, metadata=None, stream=False, system_prompt=None):
         """处理聊天请求，支持流式输出
         
         Args:
@@ -62,6 +62,7 @@ class LangChainChatService:
             conversation_id: 会话ID
             metadata: 元数据
             stream: 是否启用流式输出，默认为False
+            system_prompt: 额外的系统提示词（如事项长期记忆）
             
         Returns:
             如果stream=False，返回dict: 包含回复和会话信息的字典
@@ -75,11 +76,15 @@ class LangChainChatService:
         logger.info(f"获取到长期记忆: {long_term_memory}")
         
         # 更新系统提示，包含用户的长期记忆
-        system_prompt = self._generate_personalized_system_prompt(long_term_memory)
+        base_system_prompt = self._generate_personalized_system_prompt(long_term_memory)
+        
+        # 如果有额外的系统提示词（如事项长期记忆），合并到系统提示中
+        if system_prompt:
+            base_system_prompt += f"\n\n以下是当前事项的长期记忆：\n{system_prompt}"
         
         # 创建个性化的链
         personalized_prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content=system_prompt),
+            SystemMessage(content=base_system_prompt),
             MessagesPlaceholder(variable_name="chat_history"),
             ("user", "{input}")
         ])

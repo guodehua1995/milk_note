@@ -5,10 +5,32 @@ import json
 # 使用我们自定义的User模型
 from login.models import User
 
+class Issue(models.Model):
+    """事项模型，用于管理用户的事项"""
+    STATUS_CHOICES = [
+        ('in_progress', '进行中'),
+        ('completed', '已完成'),
+        ('cancelled', '已取消'),
+    ]
+    
+    # 使用自定义User模型，设置null=True以兼容现有数据
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='issues', help_text="关联用户")
+    title = models.CharField(max_length=200, help_text="事项标题")
+    description = models.TextField(blank=True, null=True, help_text="事项描述")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress', help_text="事项状态")
+    long_term_memory = models.TextField(blank=True, null=True, help_text="长期记忆，格式：时间:事件描述;时间:事件描述;")
+    last_memory_update = models.DateTimeField(auto_now_add=True, help_text="最后记忆更新时间")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, help_text="最后更新时间")
+    
+    def __str__(self):
+        return f"事项-{self.user.username if hasattr(self.user, 'username') else self.user.id}-{self.title[:20]}"
+
 class Conversation(models.Model):
     """对话会话模型，用于管理用户的多个会话"""
     # 使用自定义User模型，设置null=True以兼容现有数据
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='conversations', help_text="关联用户")
+    issue = models.ForeignKey(Issue, on_delete=models.SET_NULL, null=True, blank=True, related_name='conversations', help_text="关联事项")
     title = models.CharField(max_length=200, default="新对话", help_text="会话标题")
     created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
     updated_at = models.DateTimeField(auto_now=True, help_text="最后更新时间")

@@ -44,7 +44,7 @@ class DatabaseChatMessageHistory(BaseChatMessageHistory):
         messages = []
         
         for msg_obj in message_objects:
-            if msg_obj.role == 'human':
+            if msg_obj.role == 'user':
                 msg = HumanMessage(content=msg_obj.content)
             elif msg_obj.role == 'assistant':
                 msg = AIMessage(content=msg_obj.content)
@@ -61,14 +61,18 @@ class DatabaseChatMessageHistory(BaseChatMessageHistory):
     
     def add_message(self, message: BaseMessage) -> None:
         """添加消息到数据库"""
-        role_map = {
-            'HumanMessage': 'user',
-            'AIMessage': 'assistant', 
-            'SystemMessage': 'system',
-            'ToolMessage': 'tool'
-        }
-        
-        role = role_map.get(message.__class__.__name__, 'user')
+        # 正确映射消息类型到角色
+        if isinstance(message, HumanMessage):
+            role = 'user'
+        elif isinstance(message, AIMessage):
+            role = 'assistant'
+        elif isinstance(message, SystemMessage):
+            role = 'system'
+        elif isinstance(message, ToolMessage):
+            role = 'tool'
+        else:
+            # 如果是其他类型的消息，尝试从消息对象中获取角色
+            role = getattr(message, 'role', 'user')
         
         ChatMessage.objects.create(
             conversation=self.conversation,
