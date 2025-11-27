@@ -14,7 +14,7 @@ urlpatterns = [
     
     # API路由
     path('api/chat/', views.chat_api, name='chat_api'),  # 聊天API
-    path('api/conversations/', views.get_conversations, name='get_conversations'),  # 获取会话列表API
-    path('api/conversation/<int:conversation_id>/', views.get_conversation_detail, name='get_conversation_detail'),  # 获取会话详情API
+    path('api/issue/<int:issue_id>/', views.get_issue_detail, name='get_issue_detail'),  # 获取事项详情API
+    path('api/chat-history/', views.get_all_chat_history, name='get_all_chat_history'),  # 获取所有聊天历史API
     path('api/profile/update/', views.update_profile, name='update_profile'),  # 更新用户资料API
 ]

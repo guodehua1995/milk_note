@@ -11,7 +11,7 @@ from django.shortcuts import render, get_object_or_404
 import json
 from chat.services.memory_manager import MemoryManager
 from chat.llm.chat_service import LangChainChatService
-from chat.models import UserChatProfile, Conversation, ChatMessage, Issue
+from chat.models import UserChatProfile, ChatMessage, Issue
 from django.utils import timezone
 
 # 配置日志
@@ -55,32 +55,14 @@ def chat_api(request):
             
             user_id = request.user.id
             message = data.get('message')
-            conversation_id = data.get('conversation_id')
             issue_id = data.get('issue_id')
             stream = data.get('stream', False)  # 是否使用流式输出
             
-            logger.info(f"用户ID: {user_id}, 消息: {message}, 会话ID: {conversation_id}, 事项ID: {issue_id}, 流式: {stream}")
+            logger.info(f"用户ID: {user_id}, 消息: {message}, 事项ID: {issue_id}, 流式: {stream}")
             
             if not message:
                 logger.error("缺少必要参数")
                 return JsonResponse({'error': '缺少必要参数'}, status=400)
-            
-            # 获取或创建会话
-            conversation = None
-            if conversation_id:
-                conversation = get_object_or_404(Conversation, id=conversation_id, user=request.user)
-            else:
-                # 创建新会话
-                conversation = Conversation.objects.create(
-                    user=request.user,
-                    title="新对话"
-                )
-                
-                # 如果有事项，关联到会话
-                if issue_id:
-                    issue = get_object_or_404(Issue, id=issue_id, user=request.user)
-                    conversation.issue = issue
-                    conversation.save()
             
             # 调用聊天服务
             chat_service = LangChainChatService()
@@ -88,13 +70,15 @@ def chat_api(request):
             
             # 获取事项长期记忆（如果有）
             system_prompt = ""
-            if conversation.issue and conversation.issue.long_term_memory:
-                system_prompt = conversation.issue.long_term_memory
+            if issue_id:
+                issue = get_object_or_404(Issue, id=issue_id, user=request.user)
+                if issue.long_term_memory:
+                    system_prompt = issue.long_term_memory
             
             # 非流式输出
             if not stream:
                 logger.info("开始非流式聊天处理")
-                result = chat_service.chat(user_id, message, conversation.id, system_prompt=system_prompt)
+                result = chat_service.chat(user_id, message, issue_id=issue_id, system_prompt=system_prompt)
                 logger.info("非流式输出结果: %s", result)
                 logger.info("结果类型: %s", type(result))
                 
@@ -112,16 +96,13 @@ def chat_api(request):
                     logger.error("结果无法被JSON序列化: %s", str(serialize_error))
                     return JsonResponse({'error': f'序列化错误: {str(serialize_error)}'}, status=500)
                 
-                # 添加会话ID到结果中
-                result['conversation_id'] = conversation.id
-                
                 return JsonResponse(result)
             
             # 流式输出 - 使用StreamingHttpResponse
             def stream_generator():
                 try:
                     # 获取流式响应生成器
-                    stream_response = chat_service.chat(user_id, message, conversation.id, stream=True, system_prompt=system_prompt)
+                    stream_response = chat_service.chat(user_id, message, issue_id=issue_id, stream=True, system_prompt=system_prompt)
                     
                     # 逐个发送每个响应片段
                     for chunk_data in stream_response:
@@ -439,6 +420,80 @@ class ChatPreferenceView(LoginRequiredMixin, FormView):
         # 表单提交成功后重定向到当前页面，显示更新后的设置
         return HttpResponseRedirect(reverse('chat:preferences'))
 
+@csrf_exempt
+def get_issue_detail(request, issue_id):
+    """
+    获取事项详情API
+    """
+    if request.method == 'GET':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        try:
+            issue = Issue.objects.get(id=issue_id, user=request.user)
+            return JsonResponse({
+                'id': issue.id,
+                'title': issue.title,
+                'description': issue.description,
+                'status': issue.status,
+                'status_display': issue.get_status_display(),
+                'long_term_memory': issue.long_term_memory,
+                'created_at': issue.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': issue.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        except Issue.DoesNotExist:
+            return JsonResponse({'error': '事项不存在'}, status=404)
+    
+    return JsonResponse({'error': '只支持GET请求'}, status=405)
+
+@csrf_exempt
+def get_all_chat_history(request):
+    """
+    获取用户聊天历史记录API，支持分页
+    """
+    if request.method == 'GET':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        # 获取分页参数
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 30))
+        
+        # 计算偏移量
+        offset = (page - 1) * page_size
+        
+        # 获取聊天记录总数
+        total_count = ChatMessage.objects.filter(user=request.user).count()
+        
+        # 获取当前页的聊天记录，按时间顺序排列
+        messages = ChatMessage.objects.filter(user=request.user)\
+                                      .order_by('created_at')[offset:offset+page_size]
+        
+        # 构建响应数据
+        messages_data = []
+        for message in messages:
+            messages_data.append({
+                'role': message.role,
+                'content': message.content,
+                'created_at': message.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'issue_id': message.issue.id if message.issue else None
+            })
+        
+        # 计算是否有更多数据
+        has_more = offset + page_size < total_count
+        
+        return JsonResponse({
+            'messages': messages_data,
+            'total_count': total_count,
+            'page': page,
+            'page_size': page_size,
+            'has_more': has_more
+        })
+    
+    return JsonResponse({'error': '只支持GET请求'}, status=405)
+
 # 更新事项长期记忆的视图（用于定时任务）
 def update_issue_memory():
     """
@@ -451,9 +506,9 @@ def update_issue_memory():
     for issue in issues:
         # 检查是否需要更新记忆（超过30分钟）
         if timezone.now() - issue.last_memory_update > timezone.timedelta(minutes=30):
-            # 获取该事项的所有聊天消息
+            # 获取该事项的所有聊天消息，直接通过issue_id关联
             messages = ChatMessage.objects.filter(
-                conversation__issue=issue
+                issue=issue
             ).order_by('created_at')
             
             # 构建消息历史

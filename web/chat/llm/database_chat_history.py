@@ -1,46 +1,32 @@
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.messages import (BaseMessage, HumanMessage, AIMessage,
-                                     SystemMessage, ToolMessage)
-from chat.models import Conversation, ChatMessage
+from langchain_core.messages import (BaseMessage, HumanMessage, 
+                                     AIMessage, SystemMessage, ToolMessage)
+from chat.models import ChatMessage
 import uuid
 from django.utils import timezone
 
 class DatabaseChatMessageHistory(BaseChatMessageHistory):
-    """基于数据库的聊天历史存储实现"""
+    """基于数据库的聊天历史存储实现，直接关联用户和事项，去掉会话概念"""
     
-    def __init__(self, user_id, conversation_id=None, create_if_not_exists=True):
+    def __init__(self, user_id, issue_id=None):
         """初始化数据库聊天历史
         
         Args:
             user_id: 用户ID
-            conversation_id: 会话ID，如果为None则创建新会话
-            create_if_not_exists: 如果会话不存在是否创建新会话
+            issue_id: 事项ID，如果为None则表示无事项的聊天
         """
         self.user_id = user_id
-        self.conversation = None
-        
-        if conversation_id:
-            try:
-                # 使用正确的外键查询语法
-                self.conversation = Conversation.objects.get(id=conversation_id, user_id=user_id)
-            except Conversation.DoesNotExist:
-                if create_if_not_exists:
-                    self.conversation = self._create_new_conversation()
-        else:
-            self.conversation = self._create_new_conversation()
-    
-    def _create_new_conversation(self):
-        """创建新的会话"""
-        # 使用正确的外键关联方式
-        return Conversation.objects.create(
-            user_id=self.user_id,
-            title=f"新对话-{timezone.now().strftime('%Y%m%d%H%M%S')}"
-        )
+        self.issue_id = issue_id
     
     @property
     def messages(self):
         """从数据库获取消息列表"""
-        message_objects = ChatMessage.objects.filter(conversation=self.conversation)
+        # 根据用户ID和事项ID过滤消息
+        filters = {'user_id': self.user_id}
+        if self.issue_id:
+            filters['issue_id'] = self.issue_id
+        
+        message_objects = ChatMessage.objects.filter(**filters).order_by('created_at')
         messages = []
         
         for msg_obj in message_objects:
@@ -74,27 +60,30 @@ class DatabaseChatMessageHistory(BaseChatMessageHistory):
             # 如果是其他类型的消息，尝试从消息对象中获取角色
             role = getattr(message, 'role', 'user')
         
+        # 直接创建ChatMessage，关联用户和事项，去掉会话
         ChatMessage.objects.create(
-            conversation=self.conversation,
+            user_id=self.user_id,
+            issue_id=self.issue_id,
             role=role,
             content=message.content,
             message_id=str(uuid.uuid4()),
             metadata=getattr(message, 'metadata', {})
         )
-        
-        # 更新会话的最后更新时间
-        self.conversation.updated_at = timezone.now()
-        self.conversation.save()
     
     def clear(self) -> None:
-        """清空当前会话的消息"""
-        ChatMessage.objects.filter(conversation=self.conversation).delete()
+        """清空当前聊天历史"""
+        # 根据用户ID和事项ID过滤消息
+        filters = {'user_id': self.user_id}
+        if self.issue_id:
+            filters['issue_id'] = self.issue_id
+        
+        ChatMessage.objects.filter(**filters).delete()
     
     def get_conversation_id(self):
-        """获取当前会话ID"""
-        return self.conversation.id
+        """获取当前会话标识，使用用户ID和事项ID组合"""
+        # 去掉会话概念后，使用用户ID和事项ID组合作为会话标识
+        return f"{self.user_id}_{self.issue_id if self.issue_id else 'none'}"
     
     def update_conversation_title(self, title):
-        """更新会话标题"""
-        self.conversation.title = title
-        self.conversation.save()
+        """更新会话标题，去掉会话概念后此方法不再使用"""
+        pass

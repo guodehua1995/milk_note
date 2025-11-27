@@ -432,7 +432,7 @@
     <!-- 左侧侧边栏 - 占1/4宽度 -->
     <div class="chat-sidebar">
         <div class="sidebar-header">
-            <h3>我的对话</h3>
+            <h3>我的事项</h3>
         </div>
         
         <!-- 事项选择 -->
@@ -448,14 +448,29 @@
             </select>
         </div>
         
-        <!-- 新会话按钮 -->
-        <button id="new-conversation-btn" class="new-conversation-btn">
-            🆕 新会话
-        </button>
-        
-        <!-- 会话列表 -->
-        <div class="conversations-list" id="conversations-list">
-            <!-- 会话列表将通过JavaScript动态加载 -->
+        <!-- 事项详情 -->
+        <div id="issue-details" class="issue-details" style="padding: 15px; border-top: 1px solid #e0e0e0;">
+            {% if current_issue %}
+                <h4>{{ current_issue.title }}</h4>
+                <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                    状态: {{ current_issue.get_status_display }}
+                </p>
+                {% if current_issue.description %}
+                    <p style="font-size: 14px; color: #333; margin-bottom: 10px;">
+                        {{ current_issue.description }}
+                    </p>
+                {% endif %}
+                {% if current_issue.long_term_memory %}
+                    <div style="font-size: 12px; color: #999; margin-top: 10px;">
+                        <strong>长期记忆:</strong><br>
+                        {{ current_issue.long_term_memory|truncatechars:100 }}
+                    </div>
+                {% endif %}
+            {% else %}
+                <p style="font-size: 14px; color: #666; padding: 10px;">
+                    请选择一个事项查看详情
+                </p>
+            {% endif %}
         </div>
         
         <!-- 事项管理链接 -->
@@ -501,10 +516,12 @@
 
 <script>
     // 全局变量
-    let currentConversationId = null;
     let currentIssueId = {% if current_issue %}{{ current_issue.id }}{% else %}null{% endif %};
     let streamingMessageElement = null;
     let currentAssistantMessage = null;
+    let currentPage = 1;
+    let hasMoreMessages = true;
+    let isLoading = false;
     
     // 页面加载完成后执行
     document.addEventListener('DOMContentLoaded', function() {
@@ -523,8 +540,17 @@
             });
         }
         
-        // 加载会话列表（在marked初始化后）
-        loadConversations();
+        // 添加滚动事件监听器，实现下拉加载更多
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.addEventListener('scroll', function() {
+            // 当滚动到顶部时加载更多消息
+            if (this.scrollTop === 0 && hasMoreMessages && !isLoading) {
+                loadMoreMessages();
+            }
+        });
+        
+        // 加载初始聊天历史（最近30条）
+        loadChatHistory(currentPage);
     });
     
     // 绑定事件
@@ -543,14 +569,11 @@
         // 输入框自动调整高度
         document.getElementById('chat-input').addEventListener('input', autoResizeTextarea);
         
-        // 新会话按钮点击事件
-        document.getElementById('new-conversation-btn').addEventListener('click', newConversation);
-        
         // 事项选择变化事件
         document.getElementById('issue-select').addEventListener('change', function() {
             currentIssueId = this.value || null;
-            // 切换事项后，创建新会话
-            newConversation();
+            // 更新事项详情
+            updateIssueDetails();
         });
     }
     
@@ -561,79 +584,155 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
     
-    // 加载会话列表
-    function loadConversations() {
-        fetch(`/chat/api/conversations/`) 
+    // 加载指定页码的聊天历史
+    function loadChatHistory(page, isLoadMore = false) {
+        if (isLoading) return;
+        
+        isLoading = true;
+        
+        // 显示加载状态
+        const chatMessages = document.getElementById('chat-messages');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'history-loading';
+        loadingDiv.style.cssText = `
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            color: #666;
+            font-size: 14px;
+        `;
+        loadingDiv.innerHTML = '<div class="spinner"></div> 加载聊天历史...';
+        
+        if (isLoadMore) {
+            // 加载更多时，将加载指示器添加到顶部
+            chatMessages.insertBefore(loadingDiv, chatMessages.firstChild);
+        } else {
+            // 首次加载时，清空现有内容
+            chatMessages.innerHTML = '';
+            chatMessages.appendChild(loadingDiv);
+        }
+        
+        // 调用API获取聊天历史记录
+        fetch(`/chat/api/chat-history/?page=${page}&page_size=30`)
             .then(response => response.json())
             .then(data => {
-                const conversationsList = document.getElementById('conversations-list');
-                conversationsList.innerHTML = '';
+                // 移除加载指示器
+                const loadingElement = document.getElementById('history-loading');
+                if (loadingElement) {
+                    loadingElement.remove();
+                }
                 
-                data.conversations.forEach(conversation => {
-                    const conversationItem = document.createElement('div');
-                    conversationItem.className = `conversation-item ${conversation.id === currentConversationId ? 'active' : ''}`;
-                    conversationItem.dataset.id = conversation.id;
-                    conversationItem.innerHTML = `
-                        <div class="conversation-title">${conversation.title}</div>
-                        <div class="conversation-preview">${conversation.last_message || '无消息'}</div>
-                    `;
-                    
-                    // 点击会话项加载对话历史
-                    conversationItem.addEventListener('click', function() {
-                        loadConversation(conversation.id);
+                if (data.error) {
+                    console.error('加载聊天历史失败:', data.error);
+                    return;
+                }
+                
+                // 更新状态
+                hasMoreMessages = data.has_more;
+                currentPage = data.page;
+                
+                // 保存当前滚动位置
+                const previousScrollHeight = chatMessages.scrollHeight;
+                const previousScrollTop = chatMessages.scrollTop;
+                
+                // 添加聊天消息
+                if (isLoadMore) {
+                    // 加载更多时，将新消息添加到顶部
+                    data.messages.forEach(message => {
+                        addMessageToChat(message, true);
                     });
                     
-                    conversationsList.appendChild(conversationItem);
-                });
+                    // 调整滚动位置，保持用户当前查看的消息不变
+                    const newScrollHeight = chatMessages.scrollHeight;
+                    chatMessages.scrollTop = newScrollHeight - previousScrollHeight;
+                } else {
+                    // 首次加载时，将消息添加到容器中
+                    data.messages.forEach(message => {
+                        addMessageToChat(message);
+                    });
+                    
+                    // 滚动到底部
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
             })
             .catch(error => {
-                console.error('加载会话列表失败:', error);
+                console.error('加载聊天历史失败:', error);
+                // 移除加载指示器
+                const loadingElement = document.getElementById('history-loading');
+                if (loadingElement) {
+                    loadingElement.remove();
+                }
+            })
+            .finally(() => {
+                isLoading = false;
             });
     }
     
-    // 加载指定会话的聊天历史
-    function loadConversation(conversationId) {
-        currentConversationId = conversationId;
+    // 加载更多聊天历史
+    function loadMoreMessages() {
+        if (!hasMoreMessages || isLoading) return;
         
-        // 更新会话列表的激活状态
-        document.querySelectorAll('.conversation-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        document.querySelector(`[data-id="${conversationId}"]`).classList.add('active');
+        const nextPage = currentPage + 1;
+        loadChatHistory(nextPage, true);
+    }
+    
+    // 更新事项详情
+    function updateIssueDetails() {
+        const issueId = currentIssueId;
+        const issueDetails = document.getElementById('issue-details');
         
-        // 加载聊天历史
-        fetch(`/chat/api/conversation/${conversationId}/`) 
+        if (!issueId) {
+            issueDetails.innerHTML = `
+                <p style="font-size: 14px; color: #666; padding: 10px;">
+                    请选择一个事项查看详情
+                </p>
+            `;
+            return;
+        }
+        
+        // 从后端获取事项详情
+        fetch(`/chat/api/issue/${issueId}/`)
             .then(response => response.json())
-            .then(data => {
-                // 更新会话标题
-                document.getElementById('conversation-title').textContent = data.conversation.title;
+            .then(issue => {
+                let html = `
+                    <h4>${issue.title}</h4>
+                    <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                        状态: ${issue.status_display}
+                    </p>
+                `;
                 
-                // 更新聊天消息
-                const chatMessages = document.getElementById('chat-messages');
-                chatMessages.innerHTML = '';
+                if (issue.description) {
+                    html += `
+                        <p style="font-size: 14px; color: #333; margin-bottom: 10px;">
+                            ${issue.description}
+                        </p>
+                    `;
+                }
                 
-                data.messages.forEach(message => {
-                    addMessageToChat(message);
-                });
+                if (issue.long_term_memory) {
+                    // 使用JavaScript截断字符串，避免Django模板过滤器在JavaScript中导致语法错误
+                    const truncatedMemory = issue.long_term_memory.length > 100 
+                        ? issue.long_term_memory.substring(0, 100) + '...' 
+                        : issue.long_term_memory;
+                    html += `
+                        <div style="font-size: 12px; color: #999; margin-top: 10px;">
+                            <strong>长期记忆:</strong><br>
+                            ${truncatedMemory}
+                        </div>
+                    `;
+                }
                 
-                // 滚动到底部
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                issueDetails.innerHTML = html;
             })
             .catch(error => {
-                console.error('加载会话历史失败:', error);
+                console.error('加载事项详情失败:', error);
+                issueDetails.innerHTML = `
+                    <p style="font-size: 14px; color: #ff6b6b; padding: 10px;">
+                        加载事项详情失败: ${error.message}
+                    </p>
+                `;
             });
-    }
-    
-    // 新会话
-    function newConversation() {
-        currentConversationId = null;
-        document.getElementById('conversation-title').textContent = '新对话';
-        document.getElementById('chat-messages').innerHTML = '';
-        
-        // 清除会话列表的激活状态
-        document.querySelectorAll('.conversation-item').forEach(item => {
-            item.classList.remove('active');
-        });
     }
     
     // 发送消息
@@ -668,7 +767,6 @@
         // 发送请求到后端（使用流式输出）
         const data = {
             message: message,
-            conversation_id: currentConversationId,
             issue_id: currentIssueId,
             stream: true
         };
@@ -812,13 +910,6 @@
             const chatMessages = document.getElementById('chat-messages');
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-        
-        // 如果是完整响应，更新会话ID
-        if (data.is_complete && data.conversation_id) {
-            currentConversationId = data.conversation_id;
-            // 重新加载会话列表
-            loadConversations();
-        }
     }
     
     // 完成助手消息
@@ -836,7 +927,7 @@
     }
     
     // 添加消息到聊天界面
-    function addMessageToChat(message) {
+    function addMessageToChat(message, prepend = false) {
         const chatMessages = document.getElementById('chat-messages');
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${message.role}`;
@@ -856,7 +947,12 @@
             </div>
         `;
         
-        chatMessages.appendChild(messageDiv);
+        // 根据prepend参数决定是添加到顶部还是底部
+        if (prepend) {
+            chatMessages.insertBefore(messageDiv, chatMessages.firstChild);
+        } else {
+            chatMessages.appendChild(messageDiv);
+        }
         
         // 自动检测事项切换
         detectIssueChange(message.content);

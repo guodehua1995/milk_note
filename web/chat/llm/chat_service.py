@@ -32,34 +32,34 @@ class LangChainChatService:
         # 创建链
         self.chain = self.prompt | self.llm
     
-    def get_chat_history(self, user_id, conversation_id=None):
+    def get_chat_history(self, user_id, issue_id=None):
         """获取用户的聊天历史"""
         from chat.services.memory_manager import MemoryManager
         memory_manager = MemoryManager(user_id)
-        return memory_manager.get_short_term_memory(conversation_id)
+        return memory_manager.get_short_term_memory(issue_id)
     
     def get_chain_with_history(self):
         """创建带有历史记录的链"""
-        def get_session_history(user_id, conversation_id=None):
+        def get_session_history(user_id, issue_id=None):
             """获取会话历史"""
             from chat.services.memory_manager import MemoryManager
             memory_manager = MemoryManager(user_id)
-            return memory_manager.get_short_term_memory(conversation_id)
+            return memory_manager.get_short_term_memory(issue_id)
         
         return RunnableWithMessageHistory(
             self.chain,
-            lambda user_id, conversation_id: get_session_history(user_id, conversation_id),
+            lambda user_id, issue_id: get_session_history(user_id, issue_id),
             input_messages_key="input",
             history_messages_key="chat_history"
         )
     
-    def chat(self, user_id, input_text, conversation_id=None, metadata=None, stream=False, system_prompt=None):
+    def chat(self, user_id, input_text, issue_id=None, metadata=None, stream=False, system_prompt=None):
         """处理聊天请求，支持流式输出
         
         Args:
             user_id: 用户ID
             input_text: 用户输入文本
-            conversation_id: 会话ID
+            issue_id: 事项ID
             metadata: 元数据
             stream: 是否启用流式输出，默认为False
             system_prompt: 额外的系统提示词（如事项长期记忆）
@@ -93,28 +93,22 @@ class LangChainChatService:
         # 获取带有历史记录的链
         chain_with_history = RunnableWithMessageHistory(
             personalized_chain,
-            lambda: memory_manager.get_short_term_memory(conversation_id),
+            lambda: memory_manager.get_short_term_memory(issue_id),
             input_messages_key="input",
             history_messages_key="chat_history"
         )
         
-        # 获取会话ID
-        conversation = memory_manager.get_short_term_memory(conversation_id)
+        # 获取会话标识（使用用户ID和事项ID组合）
+        conversation = memory_manager.get_short_term_memory(issue_id)
         
-        # 如果是第一条消息，可以生成会话标题
-        if conversation_id is None and input_text:
-            # 这里可以使用LLM生成标题
-            # title = self._generate_conversation_title(input_text, response.content)
-            # conversation.update_conversation_title(title)
-            pass
-        
+        # 获取会话标识结果
         conversation_id_result = conversation.get_conversation_id()
         
         # 非流式输出
         if not stream:
             response = chain_with_history.invoke(
                 {"input": input_text},
-                config={"configurable": {"session_id": str(conversation_id or "default")}}
+                config={"configurable": {"session_id": str(issue_id or "default")}}
             )
             # 确保所有字段都是可序列化的
             response_content = response.content if hasattr(response, 'content') else str(response)
@@ -132,7 +126,7 @@ class LangChainChatService:
             # 使用stream方法获取流式响应
             stream_response = chain_with_history.stream(
                 {"input": input_text},
-                config={"configurable": {"session_id": str(conversation_id or "default")}}
+                config={"configurable": {"session_id": str(issue_id or "default")}}
             )
             
             full_response = ""

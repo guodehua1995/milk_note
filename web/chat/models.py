@@ -26,19 +26,6 @@ class Issue(models.Model):
     def __str__(self):
         return f"事项-{self.user.username if hasattr(self.user, 'username') else self.user.id}-{self.title[:20]}"
 
-class Conversation(models.Model):
-    """对话会话模型，用于管理用户的多个会话"""
-    # 使用自定义User模型，设置null=True以兼容现有数据
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='conversations', help_text="关联用户")
-    issue = models.ForeignKey(Issue, on_delete=models.SET_NULL, null=True, blank=True, related_name='conversations', help_text="关联事项")
-    title = models.CharField(max_length=200, default="新对话", help_text="会话标题")
-    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
-    updated_at = models.DateTimeField(auto_now=True, help_text="最后更新时间")
-    is_active = models.BooleanField(default=True, help_text="是否激活")
-    
-    def __str__(self):
-        return f"会话-{self.user.username if hasattr(self.user, 'username') else self.user.id}-{self.title[:20]}"
-
 class ChatMessage(models.Model):
     """聊天消息模型，存储对话中的每条消息"""
     ROLE_CHOICES = [
@@ -48,7 +35,9 @@ class ChatMessage(models.Model):
         ('tool', '工具'),
     ]
     
-    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE, help_text="所属会话")
+    # 直接关联用户和事项，去掉会话概念
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='chat_messages', help_text="关联用户")
+    issue = models.ForeignKey(Issue, on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_messages', help_text="关联事项")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, help_text="消息角色")
     content = models.TextField(help_text="消息内容")
     message_id = models.CharField(max_length=100, null=True, blank=True, help_text="消息唯一标识")
