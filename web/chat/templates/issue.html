@@ -235,6 +235,11 @@
                         <a href="{% url 'chat:chat' %}?issue_id={{ issue.id }}" class="action-btn view">
                             💬 开始聊天
                         </a>
+                        
+                        <!-- 知识库按钮 -->
+                        <a href="{% url 'chat:knowledge_base' issue.id %}" class="action-btn view">
+                            📚 知识库
+                        </a>
                     </div>
                 </div>
             </div>

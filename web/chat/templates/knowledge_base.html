@@ -1,0 +1,606 @@
+{% extends "login/base.html" %}
+{% load static %}
+
+{% block title %}知识库管理 - Milk Note{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 基础样式重置 */
+    * {
+        box-sizing: border-box;
+    }
+    
+    /* 确保html和body铺满屏幕 */
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* 移除container-fluid的默认padding */
+    .container-fluid {
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
+    }
+    
+    /* 移除body的默认margin */
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* 聊天容器样式 */
+    .knowledge-container {
+        display: flex;
+        min-height: calc(100vh - 56px); /* 减去toolbar的高度 */
+        width: 100%;
+        border: none;
+        border-radius: 0;
+        overflow: hidden;
+        background-color: #fff;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* 左侧侧边栏样式 - 占1/4宽度 */
+    .knowledge-sidebar {
+        width: 25%;
+        min-width: 250px;
+        max-width: 400px;
+        border-right: 1px solid #e0e0e0;
+        display: flex;
+        flex-direction: column;
+        background-color: #fff;
+    }
+    
+    .sidebar-header {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+        background-color: #f8f9fa;
+    }
+    
+    .sidebar-header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+    }
+    
+    /* 事项信息样式 */
+    .issue-info {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .issue-info h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .issue-title {
+        font-weight: 500;
+        margin-bottom: 4px;
+        font-size: 16px;
+        color: #333;
+    }
+    
+    .issue-status {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 8px;
+    }
+    
+    /* 右侧主区域样式 */
+    .knowledge-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background-color: #fff;
+    }
+    
+    .knowledge-header {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+        background-color: #f8f9fa;
+    }
+    
+    .knowledge-header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+    }
+    
+    /* 上传区域样式 */
+    .upload-section {
+        padding: 20px;
+        border-bottom: 1px solid #e0e0e0;
+        background-color: #fafafa;
+    }
+    
+    .upload-form {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* 文档列表样式 */
+    .documents-section {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+    
+    .documents-title {
+        margin-bottom: 20px;
+        font-size: 18px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .document-item {
+        background-color: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .document-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .document-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .document-title {
+        font-weight: 500;
+        color: #333;
+        font-size: 16px;
+    }
+    
+    .document-meta {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 10px;
+    }
+    
+    .document-content-preview {
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 15px;
+        line-height: 1.5;
+        max-height: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+    
+    .document-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* 模态框样式 */
+    .modal-body {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    
+    .modal-content {
+        border-radius: 8px;
+    }
+    
+    /* 响应式布局 */
+    @media (max-width: 768px) {
+        .knowledge-container {
+            flex-direction: column;
+            height: auto;
+            min-height: calc(100vh - 120px);
+        }
+        
+        .knowledge-sidebar {
+            width: 100%;
+            height: 200px;
+            border-right: none;
+            border-bottom: 1px solid #e0e0e0;
+        }
+    }
+</style>
+{% endblock %}
+
+<!-- 在base.html中展示知识库管理页面-->
+{% block content %}
+<!-- 消息提示 -->
+{% if messages %}
+    <div style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 500px;">
+        {% for message in messages %}
+            <div class="message {% if message.tags == 'success' %}message-success{% elif message.tags == 'error' %}message-error{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- 知识库管理容器 -->
+<div class="knowledge-container">
+    <!-- 左侧侧边栏 - 事项信息 -->
+    <div class="knowledge-sidebar">
+        <div class="sidebar-header">
+            <h3>事项信息</h3>
+        </div>
+        
+        <!-- 事项信息 -->
+        <div class="issue-info">
+            <div class="issue-title">{{ issue.title }}</div>
+            <div class="issue-status">状态: {{ issue.get_status_display }}</div>
+            <div class="issue-status">创建时间: {{ issue.created_at|date:"Y-m-d H:i" }}</div>
+            {% if issue.description %}
+                <div class="issue-description" style="margin-top: 10px; font-size: 14px; color: #555; line-height: 1.4;">
+                    {{ issue.description|truncatechars:100 }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- 快捷操作 -->
+        <div style="padding: 15px;">
+            <a href="{% url 'chat:chat' %}?issue_id={{ issue.id }}" class="btn btn-primary btn-sm w-100" style="margin-bottom: 10px;">
+                💬 前往聊天
+            </a>
+            <a href="{% url 'chat:issue_detail' issue.id %}" class="btn btn-secondary btn-sm w-100">
+                📋 查看事项详情
+            </a>
+        </div>
+    </div>
+    
+    <!-- 右侧主区域 -->
+    <div class="knowledge-main">
+        <div class="knowledge-header">
+            <h3>知识库管理</h3>
+        </div>
+        
+        <!-- 上传区域 -->
+        <div class="upload-section">
+            <h4>上传文档</h4>
+            <div class="upload-form">
+                <form id="upload-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="document-title" class="form-label">文档标题</label>
+                        <input type="text" class="form-control" id="document-title" name="title" placeholder="请输入文档标题">
+                    </div>
+                    <div class="mb-3">
+                        <label for="document-file" class="form-label">选择文件</label>
+                        <input type="file" class="form-control" id="document-file" name="file">
+                        <div id="file-help" class="form-text">支持文本文件上传，大小不超过10MB</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="document-content" class="form-label">或直接输入内容</label>
+                        <textarea class="form-control" id="document-content" name="content" rows="4" placeholder="请输入文档内容"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">上传文档</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 文档列表区域 -->
+        <div class="documents-section">
+            <div class="documents-title">文档列表</div>
+            <div id="documents-list">
+                <!-- 文档列表将通过JavaScript动态加载 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑文档模态框 -->
+<div class="modal fade" id="edit-document-modal" tabindex="-1" aria-labelledby="edit-document-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="edit-document-modal-label">编辑文档</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-form">
+                    {% csrf_token %}
+                    <input type="hidden" id="edit-document-id" name="document_id">
+                    <div class="mb-3">
+                        <label for="edit-document-title" class="form-label">文档标题</label>
+                        <input type="text" class="form-control" id="edit-document-title" name="title">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-document-content" class="form-label">文档内容</label>
+                        <textarea class="form-control" id="edit-document-content" name="content" rows="8"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="save-edit-btn">保存修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 全局变量
+    const issueId = {{ issue.id }};
+    let knowledgeBaseId = null;
+    
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取知识库ID
+        getKnowledgeBase();
+        
+        // 绑定上传表单提交事件
+        document.getElementById('upload-form').addEventListener('submit', uploadDocument);
+        
+        // 绑定编辑保存按钮事件
+        document.getElementById('save-edit-btn').addEventListener('click', saveDocumentEdit);
+    });
+    
+    // 获取知识库
+    function getKnowledgeBase() {
+        fetch(`/chat/api/issue/${issueId}/knowledge-base/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('获取知识库失败:', data.error);
+                    return;
+                }
+                knowledgeBaseId = data.id;
+                loadDocuments();
+            })
+            .catch(error => {
+                console.error('获取知识库失败:', error);
+            });
+    }
+    
+    // 加载文档列表
+    function loadDocuments() {
+        if (!knowledgeBaseId) return;
+        
+        fetch(`/chat/api/knowledge-base/${knowledgeBaseId}/documents/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('加载文档列表失败:', data.error);
+                    return;
+                }
+                
+                const documentsList = document.getElementById('documents-list');
+                documentsList.innerHTML = '';
+                
+                if (data.documents.length === 0) {
+                    documentsList.innerHTML = '<p class="text-center text-muted">暂无文档</p>';
+                    return;
+                }
+                
+                data.documents.forEach(doc => {
+                    const documentItem = createDocumentItem(doc);
+                    documentsList.appendChild(documentItem);
+                });
+            })
+            .catch(error => {
+                console.error('加载文档列表失败:', error);
+            });
+    }
+    
+    // 创建文档项
+    function createDocumentItem(doc) {
+        const div = document.createElement('div');
+        div.className = 'document-item';
+        div.innerHTML = `
+            <div class="document-header">
+                <h5 class="document-title">${doc.title}</h5>
+                <div class="document-actions">
+                    <button class="btn btn-sm btn-primary" onclick="editDocument(${doc.id})" data-bs-toggle="modal" data-bs-target="#edit-document-modal">
+                        编辑
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteDocument(${doc.id})")">
+                        删除
+                    </button>
+                </div>
+            </div>
+            <div class="document-meta">
+                ${doc.file_name ? `文件名: ${doc.file_name} | ` : ''}
+                大小: ${formatFileSize(doc.size)} | 
+                创建时间: ${doc.created_at}
+            </div>
+            <div class="document-content-preview"></div>
+        `;
+        
+        // 获取文档内容预览
+        fetch(`/chat/api/document/${doc.id}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.error) {
+                    const previewDiv = div.querySelector('.document-content-preview');
+                    previewDiv.textContent = data.content;
+                }
+            })
+            .catch(error => {
+                console.error('获取文档内容失败:', error);
+            });
+        
+        return div;
+    }
+    
+    // 上传文档
+    function uploadDocument(e) {
+        e.preventDefault();
+        
+        if (!knowledgeBaseId) {
+            alert('知识库未初始化，请刷新页面重试');
+            return;
+        }
+        
+        const form = e.target;
+        const formData = new FormData(form);
+        
+        // 显示加载状态
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = '上传中...';
+        submitBtn.disabled = true;
+        
+        fetch(`/chat/api/knowledge-base/${knowledgeBaseId}/upload/`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('上传失败: ' + data.error);
+                return;
+            }
+            
+            // 上传成功，重置表单并重新加载文档列表
+            form.reset();
+            loadDocuments();
+            alert('上传成功');
+        })
+        .catch(error => {
+            console.error('上传文档失败:', error);
+            alert('上传失败: ' + error.message);
+        })
+        .finally(() => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        });
+    }
+    
+    // 编辑文档
+    function editDocument(documentId) {
+        fetch(`/chat/api/document/${documentId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('获取文档失败: ' + data.error);
+                    return;
+                }
+                
+                // 填充编辑表单
+                document.getElementById('edit-document-id').value = data.id;
+                document.getElementById('edit-document-title').value = data.title;
+                document.getElementById('edit-document-content').value = data.content;
+            })
+            .catch(error => {
+                console.error('获取文档失败:', error);
+                alert('获取文档失败: ' + error.message);
+            });
+    }
+    
+    // 保存文档编辑
+    function saveDocumentEdit() {
+        const form = document.getElementById('edit-form');
+        const formData = new FormData(form);
+        const documentId = document.getElementById('edit-document-id').value;
+        
+        // 显示加载状态
+        const saveBtn = document.getElementById('save-edit-btn');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = '保存中...';
+        saveBtn.disabled = true;
+        
+        fetch(`/chat/api/document/${documentId}/update/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                title: document.getElementById('edit-document-title').value,
+                content: document.getElementById('edit-document-content').value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('保存失败: ' + data.error);
+                return;
+            }
+            
+            // 保存成功，关闭模态框并重新加载文档列表
+            const modal = bootstrap.Modal.getInstance(document.getElementById('edit-document-modal'));
+            modal.hide();
+            loadDocuments();
+            alert('保存成功');
+        })
+        .catch(error => {
+            console.error('保存文档失败:', error);
+            alert('保存失败: ' + error.message);
+        })
+        .finally(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.disabled = false;
+        });
+    }
+    
+    // 删除文档
+    function deleteDocument(documentId) {
+        if (!confirm('确定要删除这个文档吗？')) {
+            return;
+        }
+        
+        fetch(`/chat/api/document/${documentId}/delete/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('删除失败: ' + data.error);
+                return;
+            }
+            
+            // 删除成功，重新加载文档列表
+            loadDocuments();
+            alert('删除成功');
+        })
+        .catch(error => {
+            console.error('删除文档失败:', error);
+            alert('删除失败: ' + error.message);
+        });
+    }
+    
+    // 辅助函数：格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // 辅助函数：获取CSRF令牌
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

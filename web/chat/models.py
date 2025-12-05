@@ -64,3 +64,32 @@ class UserChatProfile(models.Model):
     
     def __str__(self):
         return f"用户-{self.user.username if hasattr(self.user, 'username') else self.user.id}"
+
+
+class KnowledgeBase(models.Model):
+    """知识库模型，每个事项对应一个专属知识库"""
+    # 与事项一一关联
+    issue = models.OneToOneField(Issue, on_delete=models.CASCADE, related_name='knowledge_base', help_text="关联事项")
+    name = models.CharField(max_length=200, help_text="知识库名称")
+    description = models.TextField(blank=True, null=True, help_text="知识库描述")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
+    
+    def __str__(self):
+        return f"知识库-{self.issue.title[:20]}"
+
+
+class KnowledgeDocument(models.Model):
+    """知识库文档模型，存储知识库中的文档"""
+    # 与知识库关联
+    knowledge_base = models.ForeignKey(KnowledgeBase, on_delete=models.CASCADE, related_name='documents', help_text="关联知识库")
+    title = models.CharField(max_length=200, help_text="文档标题")
+    content = models.TextField(help_text="文档内容")
+    file_name = models.CharField(max_length=200, blank=True, null=True, help_text="文件名")
+    file_type = models.CharField(max_length=50, blank=True, null=True, help_text="文件类型")
+    size = models.IntegerField(blank=True, null=True, help_text="文件大小（字节）")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
+    
+    def __str__(self):
+        return f"文档-{self.title[:20]}"

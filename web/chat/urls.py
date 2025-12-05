@@ -10,6 +10,7 @@ urlpatterns = [
     path('issue/create/', views.IssueCreateView.as_view(), name='issue_create'),  # 创建事项页面
     path('issue/<int:pk>/', views.IssueDetailView.as_view(), name='issue_detail'),  # 事项详情页面
     path('issue/<int:pk>/update/', views.IssueUpdateView.as_view(), name='issue_update'),  # 更新事项页面
+    path('issue/<int:pk>/knowledge-base/', views.KnowledgeBaseView.as_view(), name='knowledge_base'),  # 知识库管理页面
     path('preferences/', views.ChatPreferenceView.as_view(), name='preferences'),  # 聊天偏好设置页面
     
     # API路由

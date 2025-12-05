@@ -476,6 +476,10 @@
         <!-- 事项管理链接 -->
         <div class="issue-management">
             <a href="{% url 'chat:issues' %}">📋 管理事项</a>
+            {% if current_issue %}
+            <br>
+            <a href="{% url 'chat:knowledge_base' current_issue.id %}">📚 管理知识库</a>
+            {% endif %}
         </div>
     </div>
     

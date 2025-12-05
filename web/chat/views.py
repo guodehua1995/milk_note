@@ -173,6 +173,241 @@ def get_conversations(request):
     return JsonResponse({'error': '只支持GET请求'}, status=405)
 
 @csrf_exempt
+def get_knowledge_base(request, issue_id):
+    """
+    获取事项的知识库API
+    """
+    if request.method == 'GET':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        try:
+            # 获取事项
+            issue = Issue.objects.get(id=issue_id, user=request.user)
+            
+            # 获取或创建知识库
+            knowledge_base, created = KnowledgeBase.objects.get_or_create(
+                issue=issue,
+                defaults={'name': f'{issue.title}的知识库'}
+            )
+            
+            return JsonResponse({
+                'id': knowledge_base.id,
+                'name': knowledge_base.name,
+                'description': knowledge_base.description,
+                'issue_id': knowledge_base.issue.id,
+                'created_at': knowledge_base.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': knowledge_base.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        except Issue.DoesNotExist:
+            return JsonResponse({'error': '事项不存在'}, status=404)
+    
+    return JsonResponse({'error': '只支持GET请求'}, status=405)
+
+@csrf_exempt
+def upload_document(request, knowledge_base_id):
+    """
+    上传文档到知识库API
+    """
+    if request.method == 'POST':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        try:
+            # 获取知识库
+            knowledge_base = KnowledgeBase.objects.get(id=knowledge_base_id)
+            
+            # 检查知识库所属的事项是否属于当前用户
+            if knowledge_base.issue.user != request.user:
+                return JsonResponse({'error': '没有权限访问该知识库'}, status=403)
+            
+            # 处理文件上传
+            title = request.POST.get('title', '')
+            content = request.POST.get('content', '')
+            file = request.FILES.get('file')
+            
+            # 如果有文件，处理文件内容
+            if file:
+                # 读取文件内容
+                file_content = file.read().decode('utf-8')
+                # 使用文件名作为标题（如果没有提供标题）
+                if not title:
+                    title = file.name
+            else:
+                file_content = content
+            
+            # 创建文档
+            document = KnowledgeDocument.objects.create(
+                knowledge_base=knowledge_base,
+                title=title,
+                content=file_content,
+                file_name=file.name if file else None,
+                file_type=file.content_type if file else None,
+                size=file.size if file else len(content.encode('utf-8'))
+            )
+            
+            return JsonResponse({
+                'id': document.id,
+                'title': document.title,
+                'content': document.content,
+                'file_name': document.file_name,
+                'file_type': document.file_type,
+                'size': document.size,
+                'created_at': document.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': document.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            }, status=201)
+        except KnowledgeBase.DoesNotExist:
+            return JsonResponse({'error': '知识库不存在'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'上传失败: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': '只支持POST请求'}, status=405)
+
+@csrf_exempt
+def get_documents(request, knowledge_base_id):
+    """
+    获取知识库中的文档列表API
+    """
+    if request.method == 'GET':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        try:
+            # 获取知识库
+            knowledge_base = KnowledgeBase.objects.get(id=knowledge_base_id)
+            
+            # 检查知识库所属的事项是否属于当前用户
+            if knowledge_base.issue.user != request.user:
+                return JsonResponse({'error': '没有权限访问该知识库'}, status=403)
+            
+            # 获取文档列表
+            documents = KnowledgeDocument.objects.filter(knowledge_base=knowledge_base).order_by('-created_at')
+            
+            # 构建响应数据
+            documents_data = []
+            for document in documents:
+                documents_data.append({
+                    'id': document.id,
+                    'title': document.title,
+                    'file_name': document.file_name,
+                    'file_type': document.file_type,
+                    'size': document.size,
+                    'created_at': document.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'updated_at': document.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                })
+            
+            return JsonResponse({'documents': documents_data})
+        except KnowledgeBase.DoesNotExist:
+            return JsonResponse({'error': '知识库不存在'}, status=404)
+    
+    return JsonResponse({'error': '只支持GET请求'}, status=405)
+
+@csrf_exempt
+def get_document_detail(request, document_id):
+    """
+    获取文档详情API
+    """
+    if request.method == 'GET':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        try:
+            # 获取文档
+            document = KnowledgeDocument.objects.get(id=document_id)
+            
+            # 检查文档所属的知识库的事项是否属于当前用户
+            if document.knowledge_base.issue.user != request.user:
+                return JsonResponse({'error': '没有权限访问该文档'}, status=403)
+            
+            return JsonResponse({
+                'id': document.id,
+                'title': document.title,
+                'content': document.content,
+                'file_name': document.file_name,
+                'file_type': document.file_type,
+                'size': document.size,
+                'created_at': document.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': document.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        except KnowledgeDocument.DoesNotExist:
+            return JsonResponse({'error': '文档不存在'}, status=404)
+    
+    return JsonResponse({'error': '只支持GET请求'}, status=405)
+
+@csrf_exempt
+def update_document(request, document_id):
+    """
+    更新文档API
+    """
+    if request.method == 'PUT':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        try:
+            # 获取文档
+            document = KnowledgeDocument.objects.get(id=document_id)
+            
+            # 检查文档所属的知识库的事项是否属于当前用户
+            if document.knowledge_base.issue.user != request.user:
+                return JsonResponse({'error': '没有权限更新该文档'}, status=403)
+            
+            # 解析请求体
+            data = json.loads(request.body)
+            
+            # 更新文档
+            if 'title' in data:
+                document.title = data['title']
+            if 'content' in data:
+                document.content = data['content']
+            
+            document.save()
+            
+            return JsonResponse({
+                'id': document.id,
+                'title': document.title,
+                'content': document.content,
+                'updated_at': document.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        except KnowledgeDocument.DoesNotExist:
+            return JsonResponse({'error': '文档不存在'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': '无效的JSON格式'}, status=400)
+    
+    return JsonResponse({'error': '只支持PUT请求'}, status=405)
+
+@csrf_exempt
+def delete_document(request, document_id):
+    """
+    删除文档API
+    """
+    if request.method == 'DELETE':
+        # 确保用户已认证
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': '用户未认证'}, status=401)
+        
+        try:
+            # 获取文档
+            document = KnowledgeDocument.objects.get(id=document_id)
+            
+            # 检查文档所属的知识库的事项是否属于当前用户
+            if document.knowledge_base.issue.user != request.user:
+                return JsonResponse({'error': '没有权限删除该文档'}, status=403)
+            
+            # 删除文档
+            document.delete()
+            
+            return JsonResponse({'success': True, 'message': '文档删除成功'})
+        except KnowledgeDocument.DoesNotExist:
+            return JsonResponse({'error': '文档不存在'}, status=404)
+    
+    return JsonResponse({'error': '只支持DELETE请求'}, status=405)
+
+@csrf_exempt
 def get_conversation_detail(request, conversation_id):
     """获取会话详情"""
     if request.method == 'GET':
@@ -419,6 +654,27 @@ class ChatPreferenceView(LoginRequiredMixin, FormView):
         
         # 表单提交成功后重定向到当前页面，显示更新后的设置
         return HttpResponseRedirect(reverse('chat:preferences'))
+
+
+class KnowledgeBaseView(LoginRequiredMixin, FormView):
+    """
+    知识库管理视图
+    展示并处理知识库管理界面
+    """
+    template_name = 'knowledge_base.html'
+    form_class = None
+    
+    def get(self, request, *args, **kwargs):
+        """
+        处理GET请求，展示知识库管理界面
+        """
+        # 获取事项
+        issue_id = self.kwargs.get('pk')
+        issue = get_object_or_404(Issue, id=issue_id, user=request.user)
+        
+        return render(request, self.template_name, {
+            'issue': issue
+        })
 
 @csrf_exempt
 def get_issue_detail(request, issue_id):

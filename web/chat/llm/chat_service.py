@@ -2,9 +2,13 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
+from langchain_core.tools import Tool
 
 import os
 import logging
+
+# 导入知识库工具
+from chat.llm.tools import search_knowledge_base, get_document_content
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -82,15 +86,35 @@ class LangChainChatService:
         if system_prompt:
             base_system_prompt += f"\n\n以下是当前事项的长期记忆：\n{system_prompt}"
         
-        # 创建个性化的链
+        # 创建个性化的提示模板
         personalized_prompt = ChatPromptTemplate.from_messages([
             SystemMessage(content=base_system_prompt),
             MessagesPlaceholder(variable_name="chat_history"),
             ("user", "{input}")
         ])
+        
+        # 创建工具列表，包装我们的知识库工具
+        tools = [
+            Tool.from_function(
+                func=lambda query: search_knowledge_base(query, issue_id),
+                name="search_knowledge_base",
+                description="搜索事项的知识库，返回相关的文档信息。当用户提问与当前事项相关的问题时，应该先搜索知识库获取相关信息。",
+                args_schema=search_knowledge_base.args_schema
+            ),
+            Tool.from_function(
+                func=get_document_content,
+                name="get_document_content",
+                description="获取指定文档的完整内容。当需要查看文档的详细内容时使用。",
+                args_schema=get_document_content.args_schema
+            )
+        ]
+
+        self.llm = self.llm.bind_tools(tools)
+        
+        # 暂时只使用普通的链，后续修复工具调用功能
+        logger.info("创建普通的聊天链")
         personalized_chain = personalized_prompt | self.llm
         
-        # 获取带有历史记录的链
         chain_with_history = RunnableWithMessageHistory(
             personalized_chain,
             lambda: memory_manager.get_short_term_memory(issue_id),
@@ -110,8 +134,15 @@ class LangChainChatService:
                 {"input": input_text},
                 config={"configurable": {"session_id": str(issue_id or "default")}}
             )
+            
             # 确保所有字段都是可序列化的
-            response_content = response.content if hasattr(response, 'content') else str(response)
+            if isinstance(response, dict) and "output" in response:
+                # 代理执行器的输出格式
+                response_content = response["output"]
+            else:
+                # 普通链的输出格式
+                response_content = response.content if hasattr(response, 'content') else str(response)
+            
             conversation_id_str = str(conversation_id_result) if conversation_id_result else None
             metadata_dict = metadata if isinstance(metadata, dict) else {}
             
@@ -132,7 +163,19 @@ class LangChainChatService:
             full_response = ""
             # 逐个生成响应片段
             for chunk in stream_response:
-                if hasattr(chunk, 'content'):
+                if isinstance(chunk, dict):
+                    # 代理执行器的流式输出
+                    if "output" in chunk:
+                        chunk_content = chunk["output"]
+                        full_response += chunk_content
+                        yield {
+                            "chunk": chunk_content,
+                            "conversation_id": str(conversation_id_result),  # 确保是字符串
+                            "metadata": metadata if metadata is not None else {},  # 确保是字典
+                            "is_complete": False
+                        }
+                elif hasattr(chunk, 'content'):
+                    # 普通链的流式输出
                     chunk_content = chunk.content
                     full_response += chunk_content
                     yield {
