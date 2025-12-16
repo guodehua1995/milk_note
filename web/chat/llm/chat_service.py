@@ -2,13 +2,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
-from langchain_core.tools import Tool
 
 import os
 import logging
-
-# 导入知识库工具
-from chat.llm.tools import search_knowledge_base, get_document_content
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -24,37 +20,6 @@ class LangChainChatService:
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             model="qwen-plus",
             temperature=0.7
-        )
-        
-        # 创建提示模板，包含系统消息、历史消息和用户问题
-        self.prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content="你是一个有帮助的个人助理。请根据用户的提问和对话历史提供有用的回答。"),
-            MessagesPlaceholder(variable_name="chat_history"),
-            ("user", "{input}")
-        ])
-        
-        # 创建链
-        self.chain = self.prompt | self.llm
-    
-    def get_chat_history(self, user_id, issue_id=None):
-        """获取用户的聊天历史"""
-        from chat.services.memory_manager import MemoryManager
-        memory_manager = MemoryManager(user_id)
-        return memory_manager.get_short_term_memory(issue_id)
-    
-    def get_chain_with_history(self):
-        """创建带有历史记录的链"""
-        def get_session_history(user_id, issue_id=None):
-            """获取会话历史"""
-            from chat.services.memory_manager import MemoryManager
-            memory_manager = MemoryManager(user_id)
-            return memory_manager.get_short_term_memory(issue_id)
-        
-        return RunnableWithMessageHistory(
-            self.chain,
-            lambda user_id, issue_id: get_session_history(user_id, issue_id),
-            input_messages_key="input",
-            history_messages_key="chat_history"
         )
     
     def chat(self, user_id, input_text, issue_id=None, metadata=None, stream=False, system_prompt=None):
@@ -77,8 +42,6 @@ class LangChainChatService:
         memory_manager = MemoryManager(user_id)
         long_term_memory = memory_manager.get_long_term_memory()
         
-        logger.info(f"获取到长期记忆: {long_term_memory}")
-        
         # 更新系统提示，包含用户的长期记忆
         base_system_prompt = self._generate_personalized_system_prompt(long_term_memory)
         
@@ -92,27 +55,7 @@ class LangChainChatService:
             MessagesPlaceholder(variable_name="chat_history"),
             ("user", "{input}")
         ])
-        
-        # 创建工具列表，包装我们的知识库工具
-        tools = [
-            Tool.from_function(
-                func=lambda query: search_knowledge_base(query, issue_id),
-                name="search_knowledge_base",
-                description="搜索事项的知识库，返回相关的文档信息。当用户提问与当前事项相关的问题时，应该先搜索知识库获取相关信息。",
-                args_schema=search_knowledge_base.args_schema
-            ),
-            Tool.from_function(
-                func=get_document_content,
-                name="get_document_content",
-                description="获取指定文档的完整内容。当需要查看文档的详细内容时使用。",
-                args_schema=get_document_content.args_schema
-            )
-        ]
 
-        self.llm = self.llm.bind_tools(tools)
-        
-        # 暂时只使用普通的链，后续修复工具调用功能
-        logger.info("创建普通的聊天链")
         personalized_chain = personalized_prompt | self.llm
         
         chain_with_history = RunnableWithMessageHistory(
