@@ -117,3 +117,30 @@ django项目的api请求流程是什么样的？从浏览器或者postman发起�
             需要学习的内容
                 1. 持久化聊天记录与查询聊天记录
                 2. 联网搜索工具(博查或百度api)
+
+# 2025-12-17
+    开发框架修改,django改为fastapi+sqlalchemy+python-jose[cryptography]
+    原因是django框架体量太大了,学习成本高,而且市场上主要作为传统web产品开发框架在用。
+    本项目主要是针对LLM产品开发,使用更新的fastapi框架,数据库使用sqlite,认证使用jwt。
+
+    当前进度:
+        1. 用户注册/登录开发中
+        2. 用户聊天偏好配置待开发
+        3. 智能体对话待开发
+
+# 2025-12-18
+    登录注册开发完成:
+        如何实现jwt验证？ 核心是core.auth中的get_current_user函数,该函数会从请求头中提取jwt token,并验证token的有效性。如果token有效,则会返回当前用户对象,否则会抛出401错误。需要权限验证的用户,需要在路由中添加依赖get_current_user,例如：
+        @router.get("/me", response_model=User)
+        def read_users_me(current_user: User = Depends(get_current_user)):
+            return current_user
+        这样可以保证用户只有在登录后才能访问该路由,否则会返回401错误。
+
+# 2025-12-22:
+    开始实现智能体对话功能:
+        1. 搭建简单agent,实现流式对话与持久化聊天记录功能。
+        
+        todo
+        1. 实现调用工具(生图/联网查询)。
+        2. 实现RAG功能。
+        3. 实现长期记忆整理功能。

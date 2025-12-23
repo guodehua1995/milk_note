@@ -14,8 +14,28 @@
 - 知识库
     - 聊天日记总结加入向量库,如果用户提问“你记得以前...”类似的问题时,从知识库中查询并回答
 
+## 用户名
+ testuser  123456
+
+## 启动命令
+uvicorn api.main:app --reload
+### 访问接口文档
+http://127.0.0.1:8000/docs
+
+# 开发框架
+    - 语言：python 3.12
+    - 后端：fastapi
+    - 数据库：sqlite/postgresql
+    - ORM: sqlalchemy
+    - 认证：jwt
+
 
 ## 项目结构
-web: 根目录
-    chat: 对话模块
-    login： 登录与用户管理模块
+    -api 后端服务
+        - route 接口/路由
+        - service 业务逻辑
+        - model 数据库模型
+        - schema 数据校验模型
+        - core 核心功能,如数据库连接,认证,授权等
+    -web 前端服务
+
