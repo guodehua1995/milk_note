@@ -46,8 +46,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
     MILK_NOTE_API_KEY: str = "MILK_NOTE_API_KEY"
-
-    API_KEY: Optional[str] = None
+    ANSPIRE_API_KEY: Optional[str] = None
     
     @property
     def actual_database_url(self) -> str:

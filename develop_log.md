@@ -104,47 +104,113 @@ django项目的api请求流程是什么样的？从浏览器或者postman发起�
         发现模型以langchain0.x版本为基础进行编写,但是实际上当前项目使用的是langchain1.x。需要手动调整下LLM相关的代码。
 
 ## 2025-12-15
-    思考：
-        我要做的agent,一方面是能帮助我完成我个人想做的各种事情,另一方面是需要能展现我的技术能力。
-        所以目前我需要做的事是：
-            1. 学习langgraph1.x,搭建一个agent,实现可交互的agent功能。
-            2. 接入阿里云百炼知识库,实现RAG功能
-            3. 实现agent的自学习与长期记忆优化功能,让agent更像一个有记忆的有温度的助手。
-            4. 实现agent的事项规划功能,让agent能够根据用户输入,自动规划出用户需要完成的事项,并将其存储到数据库中。
-        我需要从第一步开始做起：
-            当前我已经学习了如何使用langgraph1.x搭建一个agent,实现可交互的agent功能,但是我还缺少对话记录持久化与对话记录分析的功能,这部分在长期记忆相关开发中会有用处。
-            并且我需要设计一些常用的工具,用来帮助我的agent完成一些常用的任务,例如查询时间,查询天气,查询新闻等。
-            需要学习的内容
-                1. 持久化聊天记录与查询聊天记录
-                2. 联网搜索工具(博查或百度api)
+思考：
+&emsp;&emsp;我要做的agent,一方面是能帮助我完成我个人想做的各种事情,另一方面是需要能展现我的技术能力。
+&emsp;&emsp;所以目前我需要做的事是：
+    1. 学习langgraph1.x,搭建一个agent,实现可交互的agent功能。
+    2. 接入阿里云百炼知识库,实现RAG功能
+    3. 实现agent的自学习与长期记忆优化功能,让agent更像一个有记忆的有温度的助手。
+    4. 实现agent的事项规划功能,让agent能够根据用户输入,自动规划出用户需要完成的事项,并将其存储到数据库中。
+&emsp;&emsp;我需要从第一步开始做起：
+    当前我已经学习了如何使用langgraph1.x搭建一个agent,实现可交互的agent功能,但是我还缺少对话记录持久化与对话记录分析的功能,这部分在长期记忆相关开发中会有用处。
+    并且我需要设计一些常用的工具,用来帮助我的agent完成一些常用的任务,例如查询时间,查询天气,查询新闻等。
+    需要学习的内容
+        1. 持久化聊天记录与查询聊天记录
+        2. 联网搜索工具(博查或百度api)
 
 # 2025-12-17
-    开发框架修改,django改为fastapi+sqlalchemy+python-jose[cryptography]
-    原因是django框架体量太大了,学习成本高,而且市场上主要作为传统web产品开发框架在用。
-    本项目主要是针对LLM产品开发,使用更新的fastapi框架,数据库使用sqlite,认证使用jwt。
+开发框架修改,django改为fastapi+sqlalchemy+python-jose[cryptography]
+原因是django框架体量太大了,学习成本高,而且市场上主要作为传统web产品开发框架在用。
+本项目主要是针对LLM产品开发,使用更新的fastapi框架,数据库使用sqlite,认证使用jwt。
 
-    当前进度:
-        1. 用户注册/登录开发中
-        2. 用户聊天偏好配置待开发
-        3. 智能体对话待开发
+当前进度:
+    1. 用户注册/登录开发中
+    2. 用户聊天偏好配置待开发
+    3. 智能体对话待开发
 
 # 2025-12-18
-    登录注册开发完成:
-        如何实现jwt验证？ 核心是core.auth中的get_current_user函数,该函数会从请求头中提取jwt token,并验证token的有效性。如果token有效,则会返回当前用户对象,否则会抛出401错误。需要权限验证的用户,需要在路由中添加依赖get_current_user,例如：
-        @router.get("/me", response_model=User)
-        def read_users_me(current_user: User = Depends(get_current_user)):
-            return current_user
-        这样可以保证用户只有在登录后才能访问该路由,否则会返回401错误。
+登录注册开发完成:
+如何实现jwt验证？ 核心是core.auth中的get_current_user函数,该函数会从请求头中提取jwt token,并验证token的有效性。如果token有效,则会返回当前用户对象,否则会抛出401错误。需要权限验证的用户,需要在路由中添加依赖get_current_user,例如：
+@router.get("/me", response_model=User)
+def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+这样可以保证用户只有在登录后才能访问该路由,否则会返回401错误。
 
 # 2025-12-22:
-    开始实现智能体对话功能:
-        1. 搭建简单agent,实现流式对话与持久化聊天记录功能。
-        
-        todo
-        1. 实现调用工具(生图/联网查询)。
-        2. 实现RAG功能。
-        3. 实现长期记忆整理功能。
+开始实现智能体对话功能:
+1. 搭建简单agent,实现流式对话与持久化聊天记录功能。
+
+todo
+1. 实现调用工具(生图/联网查询)。
+2. 实现RAG功能。
+3. 实现长期记忆整理功能。
 
 # 2025-12-23
-    实现了简单的agent,可以进行流式对话与持久化聊天记录功能。
-    下一步是实现调用工具(联网查询)。
+实现了简单的agent,可以进行流式对话与持久化聊天记录功能。
+下一步是实现调用工具(联网查询)。
+
+# 2025-12-24
+
+## 学习
+[插入] 学习skills:https://agentskills.io/what-are-skills
+Agent Skills 是一种轻量级的开放格式，可通过专业知识和工作流程扩展 AI 代理的功能。
+核心思想
+    将一次性喂给ai的工具/技能详细说明改为少量元数据,仅说明技能用途.模型筛选技能后,详细阅读技能文档,进行后续调用。
+    用来避免长上下文带来的token浪费与模型选择困难的问题。
+    技能文档中可以包含脚本/模板/静态资源等,模型根据技能用途进行筛选,并根据需要进行调用。
+    当前只有claude支持skill
+    
+    那么我对渐进式披露的理解是:
+        1. 先只暴露必要信息,让模型筛选可能需要的技能。
+        2. 通过指定技能查询详细信息,判断是否调用与调用方式。
+        3. 执行调用,并将结果返回给模型。
+    可是这样依然会有问题,例如安装的skills如何管理？100个/1000个skill描述模型不会出现长上下文遗忘问题,一万个呢？或者超长的skills描述如何处理？
+    或许skills会出现市场,通过标签进行分类,由模型进行搜索,下载,安装,调用。
+    也或许skills会变成一种开发框架,用来帮助开发者快速搭建agent,实现自定义的功能。这样可以给不同的agent配置不同的skills,实现skills管理功能。
+    也或许会开发出更有效率的用法,还需要时间。
+    
+    对于我当前的项目来说,目前用途比较确定,不存在模型选择阶段的长上下文问题,理解skills用途并保持关注即可。
+
+# 2025-12-26
+基本完成了agent图的设计和联网工具开发
+现在开始测试agent功能链路是否正确。
+在测试时发现langgraph的agent.stream(stream_mode="messages") 会返回大语言模型返回的所有消息,例如意图识别,整理,计划等。用户会看到许多无关操作。
+可以通过为llm执行加标签的方式,在stream结果中筛选出需要展示给用户的消息。
+
+```python
+
+--- 省略创建模型
+# 调用模型,并添加stream_to_user标签
+response = self.llm.invoke(current_messages,{
+    "tags": ["stream_to_user"]
+})
+
+---省略读取agent stream代码
+# 筛选出stream_to_user标签的消息
+for message, meta_data in agent.stream(current_messages, stream_mode="messages"):
+    if meta_data.get("tags") and "stream_to_user" in meta_data["tags"]:
+        return {"type": "assistant", "content": message.content or ""}
+
+```
+
+## 2025-12-29
+实现工具调用功能
+开始调试计划功能,同时发现联网查询目前效果不好,需要优化
+优化思路 按score排序,优先使用score高于一定阈值或前n条查询出来的数据
+
+todo 解决普通模型触发function_call的问题
+
+## 2025-12-30
+使用langgraph搭建agent,每个node都将ai返回的message存储到state中,加入messages列表。
+后续node处理逻辑是将messages作为上下文执行自己的ai逻辑。
+但是出现一种情况是,没有绑定tools的大模型,ai也会返回function_call从而终止使用自然语言回答。
+我怀疑是因为messages中包含大量之前节点的toolmessage,导致模型认为自己有工具所以触发function_call.
+我已经尝试过调整提示词,让没有工具的模型禁止使用工具,但是效果不理想。
+我应该如何解决这个问题呢？
+
+重建上下文,不再通过messages,而是text格式。
+解决方法:
+1. 修改工具,排除无关信息并结构化输出。
+2. 复杂计划流程,执行工具后,将工具输出加入计划结果。
+3. 将计划执行情况作为上下文注入提示词,而非messages。
+4. 添加计划汇总节点,使用计划结果生成最终回答。

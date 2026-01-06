@@ -21,7 +21,7 @@ def setup_logging():
     if settings.ENVIRONMENT == "dev":
         # 开发环境：彩色日志，详细格式
         color_formatter = ColoredFormatter(
-            "%(log_color)s%(asctime)s [%(levelname)-8s] %(name)s:%(lineno)d - %(message)s",
+            "%(log_color)s%(asctime)s [%(levelname)-8s] %(pathname)s:%(lineno)d - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
             log_colors={
                 'DEBUG': 'cyan',      # 调试：青色
@@ -42,8 +42,15 @@ def setup_logging():
     
     # 6. 设置第三方库的日志级别（可选，避免过于冗长）
     logging.getLogger("uvicorn").setLevel(logging.INFO)  # Uvicorn日志级别
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)  # SQLAlchemy日志级别
     logging.getLogger("httpx").setLevel(logging.WARNING)  # HTTPX日志级别
 
 # 创建模块级别的日志记录器（供其他模块使用）
+def get_logger(name: str) -> logging.Logger:
+    """获取模块级别的日志记录器"""
+    return logging.getLogger(name)
 logger = logging.getLogger(__name__)
