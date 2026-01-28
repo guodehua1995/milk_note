@@ -40,6 +40,7 @@ class ChatService:
         
         # 将字典转换为JSON字符串
         yield json.dumps({"type": "end", "content": "模型思考结束"}, ensure_ascii=False)
+        logger.debug(f"保存聊天记录{assistant_message}")
         ChatHistory.create(self.db,self.user_id, assistant_message, "assistant", chat_id)
 
     def __format_stream_message(self, message, meta_data) -> dict:

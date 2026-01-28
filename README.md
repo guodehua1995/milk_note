@@ -19,3 +19,10 @@
 web: 根目录
     chat: 对话模块
     login： 登录与用户管理模块
+
+
+# 项目运行
+## 启动命令
+后端 uvicorn api.main:app --reload
+前端 npm run serve
+## 接口文档

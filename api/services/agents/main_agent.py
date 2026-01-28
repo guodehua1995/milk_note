@@ -377,7 +377,7 @@ class MainAgent:
         graph.add_node("plan_llm_call", self.__plan_llm_call_node)
         graph.add_node("plan_tools_use", self.__plan_tools_use_node)
         graph.add_node("plan_decomposition", self.__plan_decomposition_node)
-        graph.add_node("just_talk", self.__just_talk_node)
+        graph.add_node("just_talk", self.__just_talk_node) 
         graph.add_node("plan_execution", self.__execute_plan_node)
         graph.add_node("tools_use", self.__tools_use_node)
         graph.add_node("search", self.__search_node)
@@ -385,7 +385,7 @@ class MainAgent:
         graph.add_edge(START, "agent_classification")
         graph.add_edge("just_talk", END) 
         graph.add_edge("tools_use", END)
-        return graph.compile(checkpointer=InMemorySaver())
+        return graph.compile(checkpointer=InMemorySaver())  
 
     def agent_stream(self, input: str, user_id: int):
         '''
