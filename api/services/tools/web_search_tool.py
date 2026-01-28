@@ -6,7 +6,6 @@ url = "https://api.bocha.cn/v1/web-search"
 
 logger = get_logger(__name__)
 
-
 @tool
 def web_search_tool(query: str,count: int = 10) -> str:
     '''
@@ -57,6 +56,7 @@ def web_search_tool(query: str,count: int = 10) -> str:
                     f"网站名称: {page['siteName']}\n"
                     f"发布时间: {page['dateLastCrawled']}\n"
                 )
+            logger.debug(f"联网查询工具,搜索结果:{formatted_results.strip()}")
             return formatted_results.strip()
         except Exception as e:
             return f"搜索API请求失败，原因是：搜索结果解析失败 {str(e)}"

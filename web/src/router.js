@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AuthPage from './components/AuthPage.vue'
 import ChatPage from './components/ChatPage.vue'
+import KnowledgePage from './components/KnowledgePage.vue'
 
 const routes = [
   {
@@ -17,6 +18,12 @@ const routes = [
     name: 'ChatPage',
     component: ChatPage,
     props: route => ({ username: route.query.username || '用户' })
+  },
+  {
+    path: '/knowledge',
+    name: 'KnowledgePage',
+    component: KnowledgePage,
+    props: () => ({ username: localStorage.getItem('username') || '用户' })
   }
 ]
 

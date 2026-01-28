@@ -4,7 +4,7 @@ class AgentClassification(TypedDict):
     '''
         智能体分类
     '''
-    intent: Literal["just_talk", "tools_use", "plan_node"]
+    intent: Literal["just_talk", "search", "tools_use", "plan_node"]
     dialog_summary: str | None
 
 class AgentPlan(TypedDict):
@@ -40,3 +40,10 @@ class PlanLLMCall(TypedDict):
     '''
     prompt: str | None
     response: str | None
+
+class SearchType(TypedDict):
+    '''
+        搜索类型
+    '''
+    search_type: Literal["rag_only", "web_search_only", "rag_web_search"]
+    search_content: str | None

@@ -1,5 +1,6 @@
 <template>
   <div class="chat-container">
+    <Toolbar :username="username" />
     <!-- 顶部导航栏 -->
     <div class="chat-header">
       <div class="header-content">
@@ -93,8 +94,12 @@
 <script>
 import { chatAPI } from '../api/chat'
 import { marked } from 'marked'
+import Toolbar from './Toolbar.vue'
 
 export default {
+  components: {
+    Toolbar
+  },
   name: 'ChatPage',
   props: {
     username: {
@@ -339,6 +344,7 @@ export default {
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
   border-radius: 20px;
   overflow: hidden;
+  padding-top: 60px;
 }
 
 .chat-header {

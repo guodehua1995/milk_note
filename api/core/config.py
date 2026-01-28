@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     SQLITE_DB_PATH: str = "./db.sqlite3"
     
     # PostgreSQL配置（生产环境使用）
-    POSTGRES_DB: Optional[str] = None
-    POSTGRES_USER: Optional[str] = None
-    POSTGRES_PASSWORD: Optional[str] = None
+    POSTGRES_DB: Optional[str] = "milk_note"
+    POSTGRES_USER: Optional[str] = "milk_note"
+    POSTGRES_PASSWORD: Optional[str] = "123456"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     
@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     MILK_NOTE_API_KEY: str = "MILK_NOTE_API_KEY"
     ANSPIRE_API_KEY: Optional[str] = None
+
+    # 7. 百炼AK/SK
+    OSS_ACCESS_KEY_ID: Optional[str] = None
+    OSS_ACCESS_KEY_SECRET: Optional[str] = None
+    BAILIAN_WORKSPACE_ID: Optional[str] = None
+    BAILIAN_AGENT_API_KEY: Optional[str] = None
+    OSS_BUCKET_NAME: Optional[str] = None
     
     @property
     def actual_database_url(self) -> str:
@@ -54,13 +61,13 @@ class Settings(BaseSettings):
         if self.DATABASE_URL:
             return self.DATABASE_URL
         
-        if self.ENVIRONMENT == "production":
+        # if self.ENVIRONMENT == "production":
             # 生产环境：使用PostgreSQL
-            return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@\
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@\
 {self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        else:
-            # 开发环境：使用SQLite
-            return f"sqlite:///{self.SQLITE_DB_PATH}"
+        # else:
+        #     # 开发环境：使用SQLite
+        #     return f"sqlite:///{self.SQLITE_DB_PATH}"
 
 # 创建全局配置实例（应用启动时加载）
 settings = Settings()
@@ -78,6 +85,3 @@ elif settings.ENVIRONMENT == "test":
     # 测试环境：特殊配置
     settings.DEBUG = False
     settings.LOG_LEVEL = "WARNING"
-
-if __name__ == "__main__":
-    print(settings)

@@ -31,57 +31,106 @@
         </button>
       </div>
       
-      <!-- 表单区域 -->
-      <form class="auth-form" @submit.prevent="handleSubmit">
+      <!-- 错误提示 -->
+      <div v-if="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
       
-        <!-- 邮箱 -->
+      <!-- 表单区域 -->
+      <form class="auth-form" @submit.prevent="handleSubmit" novalidate>
+        <!-- 用户名 -->
         <div class="form-group">
+          <label for="username" class="form-label">用户名</label>
           <input
+            id="username"
             v-model="form.username"
             type="text"
-            placeholder="用户名"
+            placeholder="请输入用户名"
             class="form-input"
+            :class="{ 'is-invalid': errors.username }"
             required
+            minlength="3"
+            maxlength="20"
+            autocomplete="username"
           />
+          <div v-if="errors.username" class="invalid-feedback">
+            {{ errors.username }}
+          </div>
+        </div>
+        
+        <!-- 注册时显示邮箱 -->
+        <div v-if="!isLogin" class="form-group">
+          <label for="email" class="form-label">邮箱</label>
+          <input
+            id="email"
+            v-model="form.email"
+            type="email"
+            placeholder="请输入邮箱"
+            class="form-input"
+            :class="{ 'is-invalid': errors.email }"
+            required
+            autocomplete="email"
+          />
+          <div v-if="errors.email" class="invalid-feedback">
+            {{ errors.email }}
+          </div>
         </div>
         
         <!-- 密码 -->
         <div class="form-group">
+          <label for="password" class="form-label">密码</label>
           <input
+            id="password"
             v-model="form.password"
             type="password"
-            placeholder="密码"
+            placeholder="请输入密码"
             class="form-input"
+            :class="{ 'is-invalid': errors.password }"
             required
+            minlength="6"
+            maxlength="20"
+            autocomplete="current-password"
           />
+          <div v-if="errors.password" class="invalid-feedback">
+            {{ errors.password }}
+          </div>
         </div>
         
         <!-- 注册时显示确认密码 -->
         <div v-if="!isLogin" class="form-group">
+          <label for="confirmPassword" class="form-label">确认密码</label>
           <input
+            id="confirmPassword"
             v-model="form.confirmPassword"
             type="password"
-            placeholder="确认密码"
+            placeholder="请确认密码"
             class="form-input"
+            :class="{ 'is-invalid': errors.confirmPassword }"
             required
+            minlength="5"
+            maxlength="20"
+            autocomplete="new-password"
           />
+          <div v-if="errors.confirmPassword" class="invalid-feedback">
+            {{ errors.confirmPassword }}
+          </div>
         </div>
         
         <!-- 登录时显示记住我 -->
         <div v-if="isLogin" class="form-options">
           <label class="checkbox-label">
-            <input type="checkbox" v-model="rememberMe" />
+            <input type="checkbox" v-model="rememberMe" id="rememberMe" />
             <span class="checkmark"></span>
-            记住我
+            <span>记住我</span>
           </label>
           <a href="#" class="forgot-password">忘记密码？</a>
         </div>
         
         <!-- 提交按钮 -->
         <button type="submit" class="submit-btn" :disabled="loading">
+          <span v-if="loading" class="loading-spinner"></span>
           {{ loading ? '处理中...' : (isLogin ? '登录' : '注册') }}
         </button>
-      
       </form>
     </div>
   </div>
@@ -101,6 +150,13 @@ export default {
         password: '',
         confirmPassword: ''
       },
+      errors: {
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+      },
+      errorMessage: '',
       rememberMe: false,
       loading: false
     }
@@ -108,18 +164,87 @@ export default {
   methods: {
     switchToLogin() {
       this.isLogin = true
+      this.resetErrors()
+      this.errorMessage = ''
     },
     switchToRegister() {
       this.isLogin = false
+      this.resetErrors()
+      this.errorMessage = ''
+    },
+    resetErrors() {
+      this.errors = {
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+      }
+    },
+    validateForm() {
+      this.resetErrors()
+      let isValid = true
+      
+      // 用户名验证
+      if (!this.form.username.trim()) {
+        this.errors.username = '请输入用户名'
+        isValid = false
+      } else if (this.form.username.length < 3) {
+        this.errors.username = '用户名长度不能少于3个字符'
+        isValid = false
+      } else if (this.form.username.length > 20) {
+        this.errors.username = '用户名长度不能超过20个字符'
+        isValid = false
+      }
+      
+      // 注册时验证邮箱
+      if (!this.isLogin) {
+        if (!this.form.email.trim()) {
+          this.errors.email = '请输入邮箱'
+          isValid = false
+        } else if (!this.isValidEmail(this.form.email)) {
+          this.errors.email = '请输入有效的邮箱地址'
+          isValid = false
+        }
+      }
+      
+      // 密码验证
+      if (!this.form.password) {
+        this.errors.password = '请输入密码'
+        isValid = false
+      } else if (this.form.password.length < 5) {
+        this.errors.password = '密码长度不能少于5个字符'
+        isValid = false
+      } else if (this.form.password.length > 20) {
+        this.errors.password = '密码长度不能超过20个字符'
+        isValid = false
+      }
+      
+      // 注册时验证确认密码
+      if (!this.isLogin) {
+        if (!this.form.confirmPassword) {
+          this.errors.confirmPassword = '请确认密码'
+          isValid = false
+        } else if (this.form.password !== this.form.confirmPassword) {
+          this.errors.confirmPassword = '两次输入的密码不一致'
+          isValid = false
+        }
+      }
+      
+      return isValid
+    },
+    isValidEmail(email) {
+      // 简单的邮箱验证正则
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(email)
     },
     async handleSubmit() {
-      // 验证表单
-      if (!this.isLogin && this.form.password !== this.form.confirmPassword) {
-        alert('两次输入的密码不一致')
+      // 表单验证
+      if (!this.validateForm()) {
         return
       }
       
       this.loading = true
+      this.errorMessage = ''
       
       try {
         if (this.isLogin) {
@@ -129,18 +254,18 @@ export default {
         }
       } catch (error) {
         console.error('认证失败:', error)
-        let errorMessage = '操作失败，请重试'
+        let errorMsg = '操作失败，请重试'
         if (error.response) {
           // 服务器返回了错误响应
-          errorMessage = error.response.data.detail || error.response.data.message || errorMessage
+          errorMsg = error.response.data.detail || error.response.data.message || errorMsg
         } else if (error.request) {
           // 请求已发出但没有收到响应
-          errorMessage = '网络连接失败，请检查网络连接'
+          errorMsg = '网络连接失败，请检查网络连接'
         } else {
           // 其他错误
-          errorMessage = error.message || errorMessage
+          errorMsg = error.message || errorMsg
         }
-        alert(errorMessage)
+        this.errorMessage = errorMsg
       } finally {
         this.loading = false
       }
@@ -148,9 +273,10 @@ export default {
     async login() {
       const response = await authAPI.login(this.form.username, this.form.password)
       
-      // 保存token到localStorage
+      // 保存用户信息到localStorage
       if (response.access_token) {
         localStorage.setItem('access_token', response.access_token)
+        localStorage.setItem('username', this.form.username)
       }
       
       // 登录成功后跳转到聊天页面
@@ -162,7 +288,7 @@ export default {
     async register() {
       await authAPI.register(this.form.username, this.form.email, this.form.password)
       
-      alert('注册成功！请登录')
+      this.errorMessage = '注册成功！请登录'
       this.isLogin = true // 自动切换到登录
       // 清空表单
       this.form = {
@@ -282,6 +408,15 @@ export default {
   margin-bottom: 20px;
 }
 
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  text-align: left;
+}
+
 .form-input {
   width: 100%;
   padding: 14px 16px;
@@ -290,11 +425,51 @@ export default {
   font-size: 16px;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
   outline: none;
+  text-align: left;
 }
 
 .form-input:focus {
   border-color: #ff6b6b;
   box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+}
+
+.form-input.is-invalid {
+  border-color: #ff4d4f;
+  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.1);
+}
+
+.invalid-feedback {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ff4d4f;
+  text-align: left;
+}
+
+.error-message {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  border: 1px solid #ffccc7;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .form-options {

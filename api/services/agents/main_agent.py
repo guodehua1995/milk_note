@@ -1,12 +1,10 @@
-from typing import TypedDict, Literal
+from typing import TypedDict
 from venv import logger
-from api.models import ChatHistory
 from langchain.messages import AnyMessage,SystemMessage,ToolMessage, AIMessage
 from typing_extensions import Annotated
-from api.core import settings, get_logger
+from api.core import settings, get_logger,get_db,oss_client
 from langchain_openai import ChatOpenAI
-import os
-from langgraph.types import interrupt, Command
+from langgraph.types import Command
 from langgraph.graph import StateGraph, START, END
 from api.services.tools import TOOL_INFO
 import operator
@@ -14,7 +12,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 import api.services.agents.prompts as prompts
 import api.services.agents.models as agent_models
 import json
-
+import random
+from ..document_service import DocumentService
 
 logger = get_logger(__name__)
 
@@ -29,7 +28,8 @@ class MainState(TypedDict):
     messages: Annotated[list[AnyMessage], operator.add]
     plan: agent_models.AgentPlan | None = None
     llm_calls: int | None = 0
-
+    user_id: int | None = None
+    
     ## 上下文总结
     dialog_summary: str | None = None
 
@@ -307,6 +307,66 @@ class MainAgent:
             goto = "just_talk"
         )
 
+    def __search_node(self, state: MainState) -> Command:
+        """
+        搜索节点
+        判断使用互联网/Rag/混合搜索满足用户需求
+        """
+
+        # 1. 根据用户消息判断搜索类型和搜索关键词/内容
+        current_prompts = [SystemMessage(content=prompts.SEARCH_ANALYSIS_PROMPT)]
+        current_prompts.extend(state["messages"])
+        r = self.llm.with_structured_output(agent_models.SearchType).invoke(current_prompts)
+        search_type = r["search_type"]
+        search_content = r["search_content"]
+        if search_content == "":
+            logger.error("搜索节点,搜索内容为空")
+            return Command(
+                update = {"messages": [AIMessage(content="很抱歉,我没能很好的理解您的需求,请重新描述下试试看吧~")]},
+                goto = END
+            )
+        # 2. 根据搜索类型进行搜索
+        references = '' 
+        user_id = state["user_id"]
+        if search_type == "rag_only":
+            # RAG知识库搜索
+            document_service = DocumentService(next(get_db()))
+            chunks = document_service.search_similar_chunks(search_content, user_id, limit=5, threshold=0.1)
+            logger.debug(f"搜索节点,当前搜索结果:{chunks}")
+            # 查询chunk所属的文档url
+            for chunk in chunks:
+                document = document_service.get_document_by_id(chunk["document_id"], user_id)
+                references += f"来源:知识库\n 文档内容:{chunk["content"]}\n 引用文档名称:{document.file_name}\n 引用文档url:{oss_client.path_for_download(document.file_key)}\n"
+        elif search_type == "web_search_only":
+            # Web搜索
+            web_search_results = TOOL_INFO['web_search_tool'].func.invoke({"query": search_content, "count": 5})
+            references += f"来源:互联网\n 文档内容:{web_search_results} \n"
+        elif search_type == "rag_web_search":
+            # 混合搜索
+            document_service = DocumentService(next(get_db()))
+            chunks = document_service.search_similar_chunks(search_content, user_id, limit=2, threshold=0.1)
+            docs = []
+            for chunk in chunks:
+                docs.append(f"来源:知识库\n 文档内容:{chunk["content"]}\n")
+        
+            web_search_results = TOOL_INFO['web_search_tool'].func.invoke({"query": search_content, "count": 3})
+            docs.append(f"来源:互联网\n 文档内容:{web_search_results}")
+
+            # 打乱顺序
+            random.shuffle(docs)
+            references = "\n".join(docs)
+            
+        current_messages = [SystemMessage(content=prompts.SEARCH_REPLY_PROMPT.format(references = references))]
+        current_messages.extend(state["messages"])
+        response = self.llm.invoke(current_messages,{
+                "tags": ["stream_to_user"]
+        }) 
+
+        return Command(
+            update = {"messages": [response]},
+            goto = END
+        )
+
     def __create_agent(self) -> StateGraph:
         '''
         创建主智能体
@@ -320,6 +380,7 @@ class MainAgent:
         graph.add_node("just_talk", self.__just_talk_node)
         graph.add_node("plan_execution", self.__execute_plan_node)
         graph.add_node("tools_use", self.__tools_use_node)
+        graph.add_node("search", self.__search_node)
 
         graph.add_edge(START, "agent_classification")
         graph.add_edge("just_talk", END) 
@@ -330,4 +391,4 @@ class MainAgent:
         '''
         执行主智能体工作流
         '''
-        return self.agent.stream({"messages": [{"role": "user", "content": input}], "llm_calls": 0}, {"configurable": {"thread_id": str(user_id)}},stream_mode="messages")
+        return self.agent.stream({"messages": [{"role": "user", "content": input}], "llm_calls": 0, "user_id": user_id}, {"configurable": {"thread_id": str(user_id)}},stream_mode="messages")

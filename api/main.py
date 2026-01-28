@@ -1,14 +1,12 @@
-from typing import Union
-import sys
-import os
-
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from .core import settings, setup_logging, logger
 from .route.router import api_router
 from .core.database import Base,engine
+from .tasks.rag_document_processor import rag_document_processor
 
 # 初始化日志配置
 setup_logging()
@@ -17,7 +15,25 @@ logger.info(f"启动应用：{settings.PROJECT_NAME}")
 logger.info(f"环境：{settings.ENVIRONMENT}")
 logger.info(f"日志级别：{settings.LOG_LEVEL}")
 
-app = FastAPI(title=settings.PROJECT_NAME)
+# 定义生命周期事件处理
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    应用生命周期管理
+    - 启动时：启动RAG文档处理器
+    - 关闭时：关闭RAG文档处理器
+    """
+    # 启动事件
+    rag_document_processor.start()
+    yield
+    # 关闭事件
+    rag_document_processor.shutdown()
+
+# 创建 FastAPI
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    lifespan=lifespan
+)
 
 # 自定义中间件：设置全局UTF-8编码
 class UTF8ResponseMiddleware(BaseHTTPMiddleware):
