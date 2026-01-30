@@ -1,0 +1,64 @@
+:root {
+  /* 任务类型颜色 */
+  --color-task: #4a90e2;
+  --color-task-hover: #357abd;
+  --color-task-light: rgba(74, 144, 226, 0.1);
+  --color-task-border: rgba(74, 144, 226, 0.2);
+  
+  --color-recurring: #3fade1;
+  --color-recurring-hover: #2c98c9;
+  --color-recurring-light: rgba(63, 173, 225, 0.1);
+  --color-recurring-border: rgba(63, 173, 225, 0.2);
+  
+  --color-okr: #4caf50;
+  --color-okr-hover: #388e3c;
+  --color-okr-light: rgba(76, 175, 80, 0.1);
+  --color-okr-border: rgba(76, 175, 80, 0.2);
+  
+  /* 状态颜色 */
+  --color-not-started: #ffc107;
+  --color-in-progress: #4a90e2;
+  --color-completed: #28a745;
+  --color-cancelled: #6c757d;
+  --color-overdue: #ff6b6b;
+  
+  /* 优先级颜色 */
+  --color-priority-low: #4caf50;
+  --color-priority-medium: #ffa500;
+  --color-priority-high: #f44336;
+  
+  /* 通用颜色 */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-gray-light: #f8f9fa;
+  --color-gray-medium: #6c757d;
+  --color-gray-dark: #343a40;
+  
+  /* 边框和阴影 */
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  
+  --box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --box-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --box-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+  
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* 字体大小 */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  
+  /* 过渡效果 */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}

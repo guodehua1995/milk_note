@@ -3,7 +3,7 @@
 '''
 
 from fastapi import APIRouter
-from .endpoints import auth, users, chat, document
+from .endpoints import auth, users, chat, document, task
 
 api_router = APIRouter()
 
@@ -18,3 +18,6 @@ api_router.include_router(chat.router, prefix="/api", tags=["聊天"])
 
 # 注册文档路由
 api_router.include_router(document.router, prefix="/api", tags=["文档"])
+
+# 注册任务路由
+api_router.include_router(task.router, prefix="/api", tags=["任务"])

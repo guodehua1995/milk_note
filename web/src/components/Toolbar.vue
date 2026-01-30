@@ -1,7 +1,7 @@
 <template>
   <div class="toolbar">
     <div class="toolbar-logo">
-      <img src="@/assets/logo.png" alt="Logo" class="logo" />
+      <img src="@/assets/ScreenShot_2026-01-29_162557_067.png" alt="Logo" class="logo" />
       <h1>通用智能助手</h1>
     </div>
     <div class="toolbar-menu">
@@ -12,6 +12,10 @@
       <router-link to="/knowledge" class="menu-item" :class="{ active: $route.path === '/knowledge' || $route.path.startsWith('/knowledge/') }">
         <i class="menu-icon knowledge-icon"></i>
         <span>知识库管理</span>
+      </router-link>
+      <router-link to="/tasks" class="menu-item" :class="{ active: $route.path === '/tasks' }">
+        <i class="menu-icon task-icon"></i>
+        <span>任务管理</span>
       </router-link>
     </div>
     <div class="toolbar-user">
@@ -122,6 +126,11 @@ export default {
 
 .knowledge-icon::before {
   content: "📚";
+  font-size: 18px;
+}
+
+.task-icon::before {
+  content: "✅";
   font-size: 18px;
 }
 

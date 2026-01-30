@@ -1,0 +1,41 @@
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .dialog {
+    width: 95%;
+    max-width: 95%;
+  }
+  
+  .dialog-content {
+    padding: 20px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+  }
+  
+  .weekday-selector {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .month-buttons {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .calendar-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+  
+  .calendar-day {
+    padding: 4px;
+    font-size: 10px;
+  }
+  
+  .dialog-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .dialog-footer button {
+    width: 100%;
+  }
+}

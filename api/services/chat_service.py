@@ -28,11 +28,12 @@ class ChatService:
         '''
         # 将字典转换为JSON字符串
         yield json.dumps({"type": "start", "content": "模型正在思考..."}, ensure_ascii=False)
+
         assistant_message = ""
         chat_id = ChatHistory.create(self.db, self.user_id, input, "user")
         # 执行智能体并流式返回执行结果
         # agent_stream返回的是元组(message, is_last)
-        for m, meta_data in self.agent.agent_stream(input,self.user_id):
+        for m, meta_data in self.agent.agent_stream(input, self.get_history_page(), self.user_id):
             message = self.__format_stream_message(m,meta_data)
             assistant_message += message["content"]
             # 将字典转换为JSON字符串，确保中文字符不被转义

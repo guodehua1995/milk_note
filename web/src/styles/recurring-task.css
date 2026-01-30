@@ -1,0 +1,22 @@
+/* 重复任务特定样式 */
+.recurring-task-form .form-row {
+  gap: 12px;
+}
+
+.recurring-task-form .form-group {
+  margin-bottom: 16px;
+}
+
+.recurring-task-form .form-row .form-group {
+  flex: 1;
+}
+
+.rule-description {
+  padding: 12px;
+  background-color: #f0f6ff;
+  border-radius: 6px;
+  color: #4a90e2;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid #e0ebff;
+}

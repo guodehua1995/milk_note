@@ -12,6 +12,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 import api.services.agents.prompts as prompts
 import api.services.agents.models as agent_models
 import json
+from typing import List
+from api.models import ChatHistory
 import random
 from ..document_service import DocumentService
 
@@ -387,8 +389,9 @@ class MainAgent:
         graph.add_edge("tools_use", END)
         return graph.compile(checkpointer=InMemorySaver())  
 
-    def agent_stream(self, input: str, user_id: int):
+    def agent_stream(self, input: str, history: List[ChatHistory], user_id: int):
         '''
         执行主智能体工作流
         '''
-        return self.agent.stream({"messages": [{"role": "user", "content": input}], "llm_calls": 0, "user_id": user_id}, {"configurable": {"thread_id": str(user_id)}},stream_mode="messages")
+        messages = [{"role": h.type, "content": h.content, "timestamp": h.timestamp.strftime("%Y-%m-%d %H:%M:%S")} for h in history] + [{"role": "user", "content": input}]
+        return self.agent.stream({"messages": messages, "llm_calls": 0, "user_id": user_id}, {"configurable": {"thread_id": str(user_id)}},stream_mode="messages")

@@ -1,0 +1,126 @@
+/* 选择器样式 */
+/* 重复规则选择样式 */
+.weekday-selector {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.weekday-btn {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.weekday-btn:hover {
+  border-color: #4a90e2;
+  background-color: #f0f6ff;
+}
+
+.weekday-btn.selected {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.calendar-selector {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.calendar-day {
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.calendar-day:hover {
+  border-color: #4a90e2;
+  background-color: #f0f6ff;
+}
+
+.calendar-day.selected {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.calendar-day.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.month-selector {
+  margin-bottom: 15px;
+}
+
+.month-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.month-buttons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.month-btn {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.month-btn:hover {
+  border-color: #4a90e2;
+  background-color: #f0f6ff;
+}
+
+.month-btn.selected {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.day-selector {
+  margin-top: 15px;
+}
+
+.day-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}

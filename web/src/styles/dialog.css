@@ -1,0 +1,402 @@
+/* 弹窗样式 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: dialogFadeIn 0.3s ease;
+  margin: 0 auto;
+}
+
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+/* 一次性任务弹窗表头背景颜色 */
+.dialog-header.task {
+  background: linear-gradient(135deg, var(--color-task) 0%, var(--color-task-hover) 100%);
+}
+
+/* 重复任务弹窗表头背景颜色 */
+.dialog-header.recurring {
+  background: linear-gradient(135deg, var(--color-recurring) 0%, var(--color-recurring-hover) 100%);
+}
+
+/* OKR弹窗表头背景颜色 */
+.dialog-header.okr {
+  background: linear-gradient(135deg, var(--color-okr) 0%, var(--color-okr-hover) 100%);
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dialog-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: white;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.dialog-close:hover {
+  opacity: 1;
+}
+
+.dialog-content {
+  padding: 30px;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 20px;
+  background-color: white;
+  border-radius: 0 0 12px 12px;
+}
+
+/* 表单样式 */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+/* 重复任务特定样式 */
+.recurring-task-form .form-row {
+  gap: 12px;
+}
+
+.recurring-task-form .form-group {
+  margin-bottom: 16px;
+}
+
+.recurring-task-form .form-row .form-group {
+  flex: 1;
+}
+
+/* 重复规则选择样式 */
+.weekday-selector {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.weekday-btn {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.weekday-btn:hover {
+  border-color: #4a90e2;
+  background-color: #f0f6ff;
+}
+
+.weekday-btn.selected {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.calendar-selector {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.calendar-day {
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.calendar-day:hover {
+  border-color: #4a90e2;
+  background-color: #f0f6ff;
+}
+
+.calendar-day.selected {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.calendar-day.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.month-selector {
+  margin-bottom: 15px;
+}
+
+.month-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.month-buttons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.month-btn {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.month-btn:hover {
+  border-color: #4a90e2;
+  background-color: #f0f6ff;
+}
+
+.month-btn.selected {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.day-selector {
+  margin-top: 15px;
+}
+
+.day-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.rule-description {
+  padding: 12px;
+  background-color: #f0f6ff;
+  border-radius: 6px;
+  color: #4a90e2;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid #e0ebff;
+}
+
+/* 按钮样式 */
+.btn-primary {
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #357abd;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(74, 145, 226, 0.3);
+}
+
+
+.btn-secondary {
+  background-color: #ffa500;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background-color: #e69500;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 165, 0, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .dialog {
+    width: 95%;
+    max-width: 95%;
+  }
+  
+  .dialog-content {
+    padding: 20px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+  }
+  
+  .weekday-selector {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .month-buttons {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .calendar-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+  
+  .calendar-day {
+    padding: 4px;
+    font-size: 10px;
+  }
+  
+  .dialog-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .dialog-footer button {
+    width: 100%;
+  }
+}

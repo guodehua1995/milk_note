@@ -9,7 +9,7 @@ from enum import Enum
 # 文档处理状态枚举
 class DocumentStatus(str, Enum):
     """RagDocument状态枚举"""
-    PENDING = "pending"  # 待处理
+    PENDING = "not_started"  # 未开始
     EMBEDDING = "embedding"  # 向量生成中
     COMPLETED = "completed"  # 处理完成
     FAILED = "failed"  # 处理失败
@@ -35,7 +35,7 @@ class DocumentType(str, Enum):
 # 任务状态枚举
 class TaskStatus(str, Enum):
     """通用任务状态枚举"""
-    PENDING = "pending"  # 待处理
+    PENDING = "not_started"  # 未开始
     RUNNING = "running"  # 运行中
     COMPLETED = "completed"  # 完成
     FAILED = "failed"  # 失败
