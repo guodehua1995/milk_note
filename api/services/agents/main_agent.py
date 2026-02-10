@@ -48,7 +48,7 @@ class MainAgent:
         self.llm = ChatOpenAI(
             api_key= settings.MILK_NOTE_API_KEY,
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            model="qwen-plus",
+            model="qwen-max",
             temperature=0.7
         )
         self.agent = self.__create_agent()

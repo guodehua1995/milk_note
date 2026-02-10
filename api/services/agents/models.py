@@ -47,3 +47,4 @@ class SearchType(TypedDict):
     '''
     search_type: Literal["rag_only", "web_search_only", "rag_web_search"]
     search_content: str | None
+

@@ -1,5 +1,7 @@
 from .web_search_tool import web_search_tool_info
 from .time_tools import get_current_time_tool
+from .web_search_tool import web_search
+
 
 TOOL_NAME ={
     "multiply": "乘法工具",

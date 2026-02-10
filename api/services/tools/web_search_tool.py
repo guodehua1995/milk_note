@@ -6,8 +6,8 @@ url = "https://api.bocha.cn/v1/web-search"
 
 logger = get_logger(__name__)
 
-@tool
-def web_search_tool(query: str,count: int = 10) -> str:
+
+def web_search(query: str,count: int = 10) -> str:
     '''
      联网查询
      使用Bocha Web Search API 进行网页搜索。
@@ -62,6 +62,26 @@ def web_search_tool(query: str,count: int = 10) -> str:
             return f"搜索API请求失败，原因是：搜索结果解析失败 {str(e)}"
     else:
         return f"搜索API请求失败，状态码: {response.status_code}, 错误信息: {response.text}"
+
+
+
+
+
+@tool
+def web_search_tool(query: str,count: int = 10) -> str:
+    '''
+    联网查询工具
+    使用Bocha Web Search API 进行网页搜索。
+    搜索内容包括天气/网页/文章/视频等。
+
+    参数:
+    - query:String 搜索关键词 必填
+    - count:Int 搜索结果数量,只能为10-50之间 默认10条 非必填
+
+    返回:
+    - 搜索结果的详细信息，包括网页标题、网页URL、网页摘要、网站名称、网页发布时间等。
+    '''
+    return web_search(query,count)
 
 # 工具调用说明
 web_search_tool_info = ToolInfo(

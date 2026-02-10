@@ -7,6 +7,7 @@ from .core import settings, setup_logging, logger
 from .route.router import api_router
 from .core.database import Base,engine
 from .tasks.rag_document_processor import rag_document_processor
+from .tasks.task_scheduler import task_scheduler
 
 # 初始化日志配置
 setup_logging()
@@ -20,13 +21,15 @@ logger.info(f"日志级别：{settings.LOG_LEVEL}")
 async def lifespan(app: FastAPI):
     """
     应用生命周期管理
-    - 启动时：启动RAG文档处理器
-    - 关闭时：关闭RAG文档处理器
+    - 启动时：启动RAG文档处理器和任务调度器
+    - 关闭时：关闭RAG文档处理器和任务调度器
     """
     # 启动事件
     rag_document_processor.start()
+    task_scheduler.start()
     yield
     # 关闭事件
+    task_scheduler.shutdown()
     rag_document_processor.shutdown()
 
 # 创建 FastAPI

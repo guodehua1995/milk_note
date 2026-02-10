@@ -39,6 +39,34 @@ class TaskStatus(str, Enum):
     RUNNING = "running"  # 运行中
     COMPLETED = "completed"  # 完成
     FAILED = "failed"  # 失败
+    CANCELLED = "cancelled"  # 已取消
+
+
+# 目标类型枚举
+class TaskType(str, Enum):
+    """目标类型枚举"""
+    ONCE = "once"  # 一次性目标
+    REPEAT = "repeat"  # 重复目标
+    COMPLEX = "complex"  # 复杂目标
+
+
+# 目标状态枚举
+class GoalStatus(str, Enum):
+    """目标状态枚举"""
+    NOT_STARTED = "not_started"  # 未开始
+    IN_PROGRESS = "in_progress"  # 进行中
+    COMPLETED = "completed"  # 已完成
+    CANCELLED = "cancelled"  # 已取消
+
+
+# 执行情况状态枚举
+class ExecutionStatus(str, Enum):
+    """执行情况状态枚举"""
+    NOT_STARTED = "not_started"  # 未开始
+    IN_PROGRESS = "in_progress"  # 进行中
+    COMPLETED = "completed"  # 已完成
+    CANCELLED = "cancelled"  # 已取消
+    OVERDUE = "overdue"  # 已超时
 
 
 # 用户角色枚举
