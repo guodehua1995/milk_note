@@ -66,9 +66,9 @@ class TaskService:
             self.db.add(task)
             self.db.flush()  # 获取task.id但不提交事务
             
+            execution_service = TaskExecutionService(self.db, self.user_id)
             # 对于一次性目标，自动创建执行情况
             if task_type == TaskType.ONCE:
-                execution_service = TaskExecutionService(self.db, self.user_id)
                 execution_service.create_execution(
                     task_id=task.id,
                     title=title,
@@ -381,6 +381,7 @@ class TaskService:
         '''
         task_agent = TaskAgent()
         return task_agent.complex_task_plan(task)
+        
 
     def ai_plan_task(self, task_id: int) -> List[TaskExecution]:
         '''
@@ -396,6 +397,7 @@ class TaskService:
             task = Task.get_task_by_id(self.db, task_id)
             if not task or task.user_id != self.user_id:
                 return []
+            logger.debug(f"AI规划目标: {task_id},标题: {task.title}")
             
             executions = []
             
@@ -403,8 +405,16 @@ class TaskService:
             if task.type == TaskType.REPEAT:
                 # 生成未来一周的执行情况
                 today = date.today()
-                end_date = min(today + timedelta(days=7), task.end_date)
-                start_date = max(today, task.start_date)
+                # 确保类型一致，转换为date类型进行比较
+                task_end_date = task.end_date
+                if hasattr(task_end_date, 'date'):
+                    task_end_date = task_end_date.date()
+                task_start_date = task.start_date
+                if hasattr(task_start_date, 'date'):
+                    task_start_date = task_start_date.date()
+                end_date = min(today + timedelta(days=7), task_end_date)
+                start_date = max(today, task_start_date)
+                logger.debug(f"生成重复任务执行列表: {start_date} 到 {end_date}")
                 executions = self._generate_executions_for_period(task_id, start_date, end_date)
             
             elif task.type == TaskType.COMPLEX:

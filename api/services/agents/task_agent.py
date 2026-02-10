@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Literal
 from api.core import settings,get_logger
 from langchain_openai import ChatOpenAI
 from langgraph.types import Command
@@ -8,7 +8,7 @@ from api.services.agents.models import SearchType
 from api.services.tools import web_search
 from api.models import Task, TaskExecution
 from typing import List
-from datetime import datetime, Date, DateTime
+from datetime import datetime
 
 logger = get_logger(__name__)
 
@@ -132,8 +132,8 @@ sub_task_prompt = """
 ## 拆分原则
 - 子任务数量不超过6个。
 - 子任务类型只能为once或repeat。
-- 子任务描述为当前任务为了完成主任务需要做的事情,语言简练,不能超过500个字。
-- 子任务上下文必须包含子任务的详细描述与后续执行建议,用于AI规划待办事项。 2000字以内。
+- 子任务描述为当前任务为了完成主任务需要做的事情,语言简练,不能超过200个字。
+- 子任务上下文必须包含子任务的详细描述与后续执行建议,用于AI规划待办事项。 1000字以内。
 - 子任务开始时间和结束时间必须在主任务的开始时间和结束时间之间。
 - 当子任务为repeat类型时,必须包含重复周期。重复周期格式为: weekly:1,3,5/monthly:1,15,20 代表 每周重复1,3,5号,每月重复1,15,20号。
 
@@ -147,6 +147,31 @@ sub_task_prompt = """
 ## 用户主任务结束时间
 {end_date}
 
+## 子任务字段说明
+title: 子任务标题
+description: 子任务描述
+type: 子任务类型,once/repeat
+context: 子任务上下文,用于AI规划待办事项
+repeat_cycle: 子任务重复周期,never/weekly:1,3,5/monthly:1,15,20
+start_date: 子任务开始时间
+end_date: 子任务结束时间
+
+## 输出结构
+```json
+{{
+    "subtasks": [
+        {{
+            "title": "子任务标题",
+            "description": "子任务描述",
+            "type": "once",
+            "context": "子任务上下文",
+            "repeat_cycle": "never",
+            "start_date": "子任务开始时间",
+            "end_date": "子任务结束时间"
+        }}
+    ]
+}}
+```
 """
 
 class SearchPlan(TypedDict):
@@ -204,7 +229,7 @@ class SubTask(TypedDict):
         end_date: 子任务结束时间
     '''
     title: str = ""
-    type: str = ""
+    type: Literal["once", "repeat"] = "once"
     description: str = ""
     context: str = ""   
     repeat_cycle: str = ""
@@ -227,7 +252,7 @@ class TaskAgent:
         self.llm = ChatOpenAI(
             api_key= settings.MILK_NOTE_API_KEY,
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            model="qwen-max",
+            model="qwen3-max",
             temperature=0.7
         )
         self.agent = self.__create_agent()
@@ -249,9 +274,12 @@ class TaskAgent:
             start_date = task.start_date.strftime("%Y-%m-%d"),
             end_date = task.end_date.strftime("%Y-%m-%d")
         )
-
+        logger.debug(f"复杂任务计划输入: {prompt}")
         # 生成子目标
         subtasks = self.llm.with_structured_output(ComplexTaskPlan).invoke(prompt)
+        logger.debug(f"生成子目标: {subtasks}")
+        if subtasks["subtasks"] is None:
+            return []
 
         result: List[Task] = []
         for subtask in subtasks["subtasks"]:
@@ -263,8 +291,10 @@ class TaskAgent:
                     type = subtask["type"],
                     context = subtask["context"],
                     repeat_cycle = subtask["repeat_cycle"],
-                    start_date = subtask["start_date"],
-                    end_date = subtask["end_date"],
+                    start_date = datetime.strptime(subtask["start_date"], "%Y-%m-%d"),
+                    end_date = datetime.strptime(subtask["end_date"], "%Y-%m-%d"),
+                    user_id = task.user_id,
+                    is_ai_planned = True,
                 )
             )
         return result
@@ -294,7 +324,7 @@ class TaskAgent:
         # 生成当前周的执行单元
         repeat_task_plan =  self.llm.with_structured_output(RepeatTaskWeeklyPlan).invoke(prompt)
         repeat_executions = repeat_task_plan["executions"]
-
+        logger.debug(f"生成重复任务执行列表: {repeat_executions}")
         result:List[TaskExecution] = []
         for execution in repeat_executions:
             result.append(
@@ -302,7 +332,8 @@ class TaskAgent:
                 task_id = task.id,
                 title = execution["title"],
                 content = execution["content"],
-                execution_date = execution["execution_date"],
+                execution_date = datetime.strptime(execution["execution_date"], "%Y-%m-%d"),
+                user_id = task.user_id,
                 )
             )
 
