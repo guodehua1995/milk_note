@@ -1,16 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Annotated, List
-
-from api.core.database import get_db
-from api.core.auth import get_current_active_user
-from api.models.user import User
+from api.core import get_db, GoalStatus,get_current_active_user
+from api.models import User, Task
 from api.schemas.task import (
     TaskCreate, TaskUpdate, TaskResponse, TaskListResponse,
     TaskExecutionCreate, TaskExecutionUpdate, TaskExecutionResponse, TaskExecutionListResponse,
-    BatchExecutionCreate, AIPlanResponse, ProgressResponse
+    BatchExecutionCreate, AIPlanResponse, ProgressResponse, TaskChatMessage
 )
-from api.services.task import TaskService, TaskExecutionService
+from api.services import TaskService, TaskExecutionService, ChatService
 from api.core import logger
 
 
@@ -395,3 +394,70 @@ async def update_all_executions_status(
     except Exception as e:
         logger.error(f"更新所有执行情况状态失败: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新所有执行情况状态失败")
+
+
+@router.post("/chat")
+async def task_chat(
+    message: TaskChatMessage,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """
+    任务相关对话
+    
+    - **task_id**: 任务ID
+    - **input**: 用户输入内容
+    """
+    try:
+        # 验证任务是否存在且属于当前用户
+        task_service = TaskService(db, current_user.id)
+        task = task_service.get_task_detail(message.task_id)
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+        
+        logger.info(f"用户 {current_user.id} 与任务 {message.task_id} 对话: {message.input}")
+        
+        # 这里可以集成TaskAgent进行任务相关的对话处理
+
+        child_task_context = __sub_task_context([t for t in task_service.get_child_tasks(message.task_id) if t.status != GoalStatus.CANCELLED.value ])
+
+        contxt = f"""
+        #{task.title}
+
+        ## 当前目标描述
+        {task.description}
+
+        ## 当前目标执行情况
+        {task.context}
+
+        """
+
+        if child_task_context:
+            contxt += child_task_context
+
+        # 接入目标提示词 进行对话
+        chat_service = ChatService(user_id=current_user.id, db=db)
+        return StreamingResponse(chat_service.chat(message.input, contxt), media_type="text/event-stream")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"任务对话失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="任务对话失败")
+
+def __sub_task_context(child_tasks: List[Task]):
+    """
+    获取子任务的上下文
+    """
+    sub_task_context = ""
+    for child_task in child_tasks:
+        sub_task_context += f"""
+        ## 子目标 {child_task.title}
+
+        ### 子目标描述: 
+        {child_task.description}
+
+        ### 子目标执行情况: 
+        {child_task.context}
+
+        """
+    return sub_task_context

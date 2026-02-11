@@ -244,9 +244,9 @@ class ComplexTaskPlan(TypedDict):
     '''
     subtasks: list[SubTask] | None = None
 
-class TaskAgent:
+class TaskPlanAgent:
     '''
-    任务智能体
+    任务计划智能体
     '''
     def __init__(self):
         self.llm = ChatOpenAI(

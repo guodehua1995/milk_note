@@ -1,4 +1,3 @@
-from calendar import c
 import json
 from langchain_core.messages.ai import AIMessageChunk
 from api.models import ChatHistory
@@ -6,6 +5,7 @@ from sqlalchemy.orm import Session
 from api.core import get_logger
 from .agents.main_agent import MainAgent
 from api.services.tools import TOOL_NAME, TOOL_INFO
+from typing import Optional
 
 logger = get_logger(__name__)
 
@@ -22,7 +22,7 @@ class ChatService:
         '''
         return ChatHistory.get_history_page(self.db, self.user_id, page, page_size)[::-1]
 
-    async def chat(self, input: str):
+    async def chat(self,input: str,context: Optional[str] = None):
         '''
         执行主智能体工作流
         '''
@@ -33,7 +33,7 @@ class ChatService:
         chat_id = ChatHistory.create(self.db, self.user_id, input, "user")
         # 执行智能体并流式返回执行结果
         # agent_stream返回的是元组(message, is_last)
-        for m, meta_data in self.agent.agent_stream(input, self.get_history_page(), self.user_id):
+        for m, meta_data in self.agent.agent_stream(input, self.get_history_page(), self.user_id, context):
             message = self.__format_stream_message(m,meta_data)
             assistant_message += message["content"]
             # 将字典转换为JSON字符串，确保中文字符不被转义

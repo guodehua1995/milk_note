@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Optional
 from venv import logger
 from langchain.messages import AnyMessage,SystemMessage,ToolMessage, AIMessage
 from typing_extensions import Annotated
@@ -27,6 +27,7 @@ class MainState(TypedDict):
     plans: 计划列表 dict 计划字典 operator.add 添加操作
     llm_calls: 调用次数
     '''
+    context: Optional[str] = None
     messages: Annotated[list[AnyMessage], operator.add]
     plan: agent_models.AgentPlan | None = None
     llm_calls: int | None = 0
@@ -62,7 +63,7 @@ class MainAgent:
             state["messages"] = state["messages"][-10:]
 
         llm_with_structured_output  = self.llm.with_structured_output(agent_models.AgentClassification)
-        current_messages = [SystemMessage(content=prompts.AGENT_CLASSIFICATION_PROMPT)]
+        current_messages = [SystemMessage(content=prompts.AGENT_CLASSIFICATION_PROMPT.format(context = state["context"]))]
         current_messages.extend(state["messages"])
         agent_classification = llm_with_structured_output.invoke(current_messages)
         logger.debug("智能体分类节点分类结果：%s", json.dumps(agent_classification, ensure_ascii=False))
@@ -99,7 +100,7 @@ class MainAgent:
         tool_descriptions = {}
         for tool_code in TOOL_INFO.keys():
             tool_descriptions[tool_code] = TOOL_INFO[tool_code].description
-        current_messages = [SystemMessage(content = prompts.PLAN_PROMPT.format(tools_info = tool_descriptions))]
+        current_messages = [SystemMessage(content = prompts.PLAN_PROMPT.format(context = state["context"],tools_info = tool_descriptions))]
         current_messages.extend(state["messages"])
 
         llm_with_structured_output = self.llm.with_structured_output(agent_models.AgentPlans)
@@ -389,9 +390,9 @@ class MainAgent:
         graph.add_edge("tools_use", END)
         return graph.compile(checkpointer=InMemorySaver())  
 
-    def agent_stream(self, input: str, history: List[ChatHistory], user_id: int):
+    def agent_stream(self, input: str, history: List[ChatHistory], user_id: int, context: Optional[str] = None):
         '''
         执行主智能体工作流
         '''
         messages = [{"role": h.type, "content": h.content, "timestamp": h.timestamp.strftime("%Y-%m-%d %H:%M:%S")} for h in history] + [{"role": "user", "content": input}]
-        return self.agent.stream({"messages": messages, "llm_calls": 0, "user_id": user_id}, {"configurable": {"thread_id": str(user_id)}},stream_mode="messages")
+        return self.agent.stream({"messages": messages, "llm_calls": 0, "user_id": user_id, "context": context}, {"configurable": {"thread_id": str(user_id)}},stream_mode="messages")

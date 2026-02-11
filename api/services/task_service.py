@@ -285,7 +285,6 @@ class TaskService:
         task_agent = TaskAgent()
         return task_agent.summary_task_context(task, executions)
         
-
     def _generate_executions_for_period(self, task_id: int, start_date: date, end_date: date) -> List[TaskExecution]:
         '''
         为指定时间段生成执行情况
@@ -382,7 +381,6 @@ class TaskService:
         task_agent = TaskAgent()
         return task_agent.complex_task_plan(task)
         
-
     def ai_plan_task(self, task_id: int) -> List[TaskExecution]:
         '''
         AI规划目标的待办事项
@@ -426,7 +424,18 @@ class TaskService:
         except Exception as e:
             logger.error(f"AI规划目标失败: {str(e)}")
             raise
-
+    
+    def get_child_tasks(self, task_id: int) -> List[Task]:
+        '''
+        获取子目标列表
+        
+        Args:
+            task_id: 目标ID
+            
+        Returns:
+            子目标对象列表
+        '''
+        return Task.get_subtasks_by_task_id(self.db, task_id)
 class TaskExecutionService:
     def __init__(self, db: Session, user_id: int):
         '''

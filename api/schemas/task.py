@@ -126,3 +126,10 @@ class ProgressResponse(BaseModel):
     task_id: int
     progress: int
     status: str
+
+
+# 任务对话模型
+class TaskChatMessage(BaseModel):
+    """任务对话模型"""
+    task_id: int
+    input: str

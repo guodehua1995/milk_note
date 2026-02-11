@@ -1,7 +1,7 @@
 from sqlalchemy import ForeignKey, String, Text, Integer, Boolean, Date, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from api.core import Base
+from api.core.database import Base
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -52,6 +52,12 @@ class Task(Base):
         '''
         return db.query(cls).filter(cls.user_id == user_id, cls.parent_id.is_(None)).offset(skip).limit(limit).all()
 
+    @classmethod
+    def get_subtasks_by_task_id(cls, db: Session, task_id: int):
+        '''
+        根据目标ID获取子目标列表
+        '''
+        return db.query(cls).filter(cls.parent_id == task_id).all()
 
 class TaskExecution(Base):
     """
