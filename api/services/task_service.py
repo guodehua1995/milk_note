@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from api.models import Task, TaskExecution
 from api.core import get_logger
 from api.core.constants import TaskType, GoalStatus, ExecutionStatus
-from api.services.agents import TaskAgent
+from api.services.agents import TaskPlanAgent
 
 logger = get_logger(__name__)
 
@@ -282,7 +282,7 @@ class TaskService:
         Args:
             task_id: 目标ID
         '''
-        task_agent = TaskAgent()
+        task_agent = TaskPlanAgent()
         return task_agent.summary_task_context(task, executions)
         
     def _generate_executions_for_period(self, task_id: int, start_date: date, end_date: date) -> List[TaskExecution]:
@@ -308,7 +308,7 @@ class TaskService:
 
         # 生成执行情况
         if(task.is_ai_planned):
-            task_agent = TaskAgent()
+            task_agent = TaskPlanAgent()
             executions = task_agent.repeat_task_plan(task)
         else:
             current_date = start_date
