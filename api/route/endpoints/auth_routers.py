@@ -7,7 +7,7 @@ from typing import Optional
 from api.core.config import settings
 from api.core.database import get_db
 from api.core.auth import create_access_token
-from api.models.user import User
+from api.models.user_models import User
 from api.schemas.auth import Token, UserCreate, UserLogin
 from api.core import logger
 from datetime import timedelta

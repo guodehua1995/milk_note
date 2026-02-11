@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from api.core.config import settings
-from api.models.task import Base
+from api.models.task_models import Base
 
 # 创建数据库引擎
 engine = create_engine(

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
-from api.models.user import User
+from api.models.user_models import User
 from api.core.auth import get_current_active_user
 from api.core.database import get_db
 from api.core import logger

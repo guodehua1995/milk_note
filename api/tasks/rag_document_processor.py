@@ -2,7 +2,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm import Session
 from api.core import get_db,oss_client,get_logger,DocumentStatus,ChunkStatus
-from api.models.rag import RagDocument, RagChunks
+from api.models.rag_models import RagDocument, RagChunks
 from api.services.rag.writer import VectorWriter
 
 

@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from api.core.config import settings
 from api.core.database import get_db
-from api.models.user import User
+from api.models.user_models import User
 
 # OAuth2密码Bearer流，从请求头获取令牌
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")

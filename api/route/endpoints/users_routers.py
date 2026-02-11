@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from typing import Annotated
 
 from api.core.auth import get_current_active_user
-from api.models.user import User
+from api.models.user_models import User
 from api.schemas.user import UserResponse  
 
 router = APIRouter(prefix="/users", tags=["用户"])
