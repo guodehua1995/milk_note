@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from api.core.database import SessionLocal
 from api.services.task_service import TaskService, TaskInstanceService, RecurringTaskService
-from api.models.task import RecurringTask, TaskInstance
+from api.models.task_models import RecurringTask, TaskInstance
 import logging
 
 logger = logging.getLogger(__name__)

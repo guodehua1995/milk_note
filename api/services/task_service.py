@@ -1,10 +1,11 @@
 from datetime import date, datetime, timedelta
 from typing import List, Optional, Dict, Any
+from langchain.messages import AnyMessage
 from sqlalchemy.orm import Session
 from api.models import Task, TaskExecution
 from api.core import get_logger
 from api.core.constants import TaskType, GoalStatus, ExecutionStatus
-from api.services.agents import TaskPlanAgent
+from api.services.agents import TaskPlanAgent, TaskChatAgent
 
 logger = get_logger(__name__)
 
@@ -436,6 +437,9 @@ class TaskService:
             子目标对象列表
         '''
         return Task.get_subtasks_by_task_id(self.db, task_id)
+
+    
+
 class TaskExecutionService:
     def __init__(self, db: Session, user_id: int):
         '''

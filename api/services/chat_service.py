@@ -4,8 +4,10 @@ from api.models import ChatHistory
 from sqlalchemy.orm import Session
 from api.core import get_logger
 from .agents.main_agent import MainAgent
+from .agents import TaskChatAgent
 from api.services.tools import TOOL_NAME, TOOL_INFO
 from typing import Optional
+from langchain_core.messages import HumanMessage, AnyMessage
 
 logger = get_logger(__name__)
 
@@ -44,6 +46,34 @@ class ChatService:
         logger.debug(f"保存聊天记录{assistant_message}")
         ChatHistory.create(self.db,self.user_id, assistant_message, "assistant", chat_id)
 
+    async def chat_with_task_info(self,task_info: str,child_task_info: str,user_message: str):
+        '''
+        执行任务聊天智能体工作流
+        '''
+
+        logger.debug(f"任务咨询{task_info},子任务{child_task_info},用户输入{user_message}")
+        historys = self.get_history_page()
+        yield json.dumps({"type": "start", "content": "模型正在思考..."}, ensure_ascii=False)
+        chat_id = ChatHistory.create(self.db, self.user_id, user_message, "user")
+        task_agent = TaskChatAgent()
+        assistant_message = ""
+        
+        try:
+            for m, meta_data in task_agent.ask_stream(self.user_id,task_info,child_task_info,self.__covert_history(historys),user_message):
+                message = self.__format_stream_message(m,meta_data)
+                assistant_message += message["content"]
+                yield json.dumps(message, ensure_ascii=False)+'\n'
+            
+            yield json.dumps({"type": "end", "content": "模型思考结束"}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"任务聊天智能体执行异常: {str(e)}", exc_info=True)
+            error_message = "回答中出现了一些意料之外的问题,请稍后重试~"
+            yield json.dumps({"type": "assistant", "content": error_message}, ensure_ascii=False)+'\n'
+            yield json.dumps({"type": "end", "content": "模型思考结束"}, ensure_ascii=False)
+            assistant_message = error_message
+        finally:
+            ChatHistory.create(self.db,self.user_id, assistant_message, "assistant", chat_id)
+
     def __format_stream_message(self, message, meta_data) -> dict:
         '''
             格式化消息
@@ -67,3 +97,9 @@ class ChatService:
                     return {"type": "assistant", "content": ""}
 
         return {"type": "assistant", "content": ""}
+
+    def __covert_history(self, historys: list[ChatHistory]) -> list[dict]:
+        '''
+        转换为消息列表
+        '''
+        return [{"role": h.type, "content": h.content, "timestamp": h.timestamp.strftime("%Y-%m-%d %H:%M:%S")} for h in historys]

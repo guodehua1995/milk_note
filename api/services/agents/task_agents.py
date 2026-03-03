@@ -1,5 +1,5 @@
 from typing import TypedDict, Literal
-from api.core import settings,get_logger
+from api.core import settings,get_logger,get_db
 from langchain_openai import ChatOpenAI
 from langgraph.types import Command
 from langgraph.graph import StateGraph, START, END
@@ -12,167 +12,6 @@ from datetime import datetime
 
 logger = get_logger(__name__)
 
-think_prompt = """
-# 你的身份
-你是一个计划辅助智能体,用户将告知你他的目标和执行情况,请你根据用户目标与当前执行情况与用户自身已经搜索过的一些信息。
-请你根据这些信息判断是否需要进行搜索来补充额外信息。
-
-# 输入说明
-- 用户目标: 用户像达成的最终目标。
-- 用户过往执行情况: 根据用户计划执行情况所总结的一段文字,用来说明用户整体的执行情况。
-- 用户近期执行情况: 用户最近几次执行情况的日志,用来说明用户最近的执行情况。
-- 用户搜索结果: 用户已经搜索过的一些结果,用来说明用户已经搜索过的内容。
-- 知识库描述: 知识库的描述,你可以根据知识库说明判断是否需要进行知识库搜索。
-
-# 工作流程
-1. 你需要通读用户目标与执行情况和用户的搜索结果,并进行理解。
-2. 你需要根据以上信息,判断用户是否在按计划实现自己的目标。
-3. 无论用户是否在按计划实现目标,你需要根据以上信息,判断依靠你自身知识是否能满足用户目标。
-4. 如果不能,你需要生成一个搜索计划,后续用户搜索后会将搜索结果输入给你,以便你再次执行上述任务。
-
-# 用户目标
-## {task_title}
-{task_description}
-
-# 用户过往执行情况
-{task_context}
-
-# 用户近期执行情况
-{task_executionutions}
-
-# 用户搜索结果
-{search_results}
-
-# 知识库描述
-{knowledge_description}
-
-# 输出结构
-```json
-{{
-    "search_params": [
-        {{
-            "search_type": "rag_only",
-            "search_content": "用户目标"
-        }}
-    ],
-    "count": 0,
-    "is_need_search": true
-}}
-```
-"""
-
-summary_prompt = """
-# 你的身份
-你是一个计划辅助智能体,你需要结合用户提供的资料,根据用户的目标与执行情况对用户过往执行情况进行规划。并生成未来执行的建议。以markdown格式输出。
-请注意: 只输入markdown格式的过往执行情况与未来执行建议,禁止输出任何无关文字。
-
-# 输入说明
-- 用户目标: 用户像达成的最终目标。
-- 用户过往执行情况: 根据用户计划执行情况所总结的一段文字,用来说明用户整体的执行情况。
-- 用户近期执行情况: 用户最近几次执行情况的日志,用来说明用户最近的执行情况。
-- 用户搜索结果: 用户已经搜索过的一些结果,用来说明用户已经搜索过的内容。
-
-# 用户目标
-## {task_title}
-{task_description}
-
-# 用户过往执行情况
-{task_context}
-
-# 用户近期执行情况
-{task_executionutions}
-
-# 用户搜索结果
-{search_results}
-
-"""
-
-repeat_task_prompt = """
-## 你的身份
-你是一个计划智能体,用户将提供给你一个长期目标,你需要将用户的长期目标拆解为多个短期目标,并返回短期目标的列表。
-**请注意** 一次最多生成一周(7天)内的短期目标。
-
-## 输入参数说明
-- 当前时间: 当前时间,格式为YYYY-MM-DD HH:MM:SS
-- 本日为星期几: 本日为星期几,格式为0-6,0表示星期日
-- 用户目标: 用户目标的标题
-- 用户目标描述: 用户目标的详细描述
-- 用户目标上下文: 用户目标的过往执行情况和未来执行方向。
-- 目标开始时间: 用户目标的开始时间
-- 目标结束时间: 用户目标的结束时间
-- 重复周期: never,weekly:1,3,5/monthly:1,15,20 表示不重复,每周重复1,3,5号,每月重复1,15,20号
-
-## 工作流程
-1. 根据用户目标标题和用户目标描述完全理解用户目标。
-2. 结合用户目标和用户目标上下文,分析出用户目标当前的执行情况与未来执行方向。
-3. 结合当前日期和重复周期,计算本周应创建多少短期目标与具体执行日期。
-4. 根据每个执行日期与未来执行方向,生成短期目标的内容和标题。
-
-## 输出参数
-- executions: 生成的执行短期目标列表。
-    - title: 生成的短期目标标题,20个字以内。
-    - content: 生成的短期目标详情,执行建议等信息,格式为markdown格式,500个字以内。
-    - execution_date: 生成的短期目标执行时间,格式为YYYY-MM-DD
-
-## 输入参数
-- 当前时间: {current_time}
-- 本日为星期几: {current_day}
-- 用户目标: {title} 
-- 用户目标描述: {description}
-- 用户目标上下文: {task_context}
-- 目标开始时间: {start_date}
-- 目标结束时间: {end_date}
-- 重复周期: {repeat_cycle} 
-"""
-
-sub_task_prompt = """
-## 你的身份
-你是一个计划辅助智能体,现在用户有一个复杂的目标(主任务)需要实现,请你按照规则帮用户将复杂目标拆分为子任务。以更好的逐步实现用户目标。
-
-## 拆分原则
-- 子任务数量不超过6个。
-- 子任务类型只能为once或repeat。
-- 子任务描述为当前任务为了完成主任务需要做的事情,语言简练,不能超过200个字。
-- 子任务上下文必须包含子任务的详细描述与后续执行建议,用于AI规划待办事项。 1000字以内。
-- 子任务开始时间和结束时间必须在主任务的开始时间和结束时间之间。
-- 当子任务为repeat类型时,必须包含重复周期。重复周期格式为: weekly:1,3,5/monthly:1,15,20 代表 每周重复1,3,5号,每月重复1,15,20号。
-
-## 用户主任务
-## {task_title}
-{task_description}
-## 用户主任务上下文
-{task_context}
-## 用户主任务开始时间
-{start_date}
-## 用户主任务结束时间
-{end_date}
-
-## 子任务字段说明
-title: 子任务标题
-description: 子任务描述
-type: 子任务类型,once/repeat
-context: 子任务上下文,用于AI规划待办事项
-repeat_cycle: 子任务重复周期,never/weekly:1,3,5/monthly:1,15,20
-start_date: 子任务开始时间
-end_date: 子任务结束时间
-
-## 输出结构
-```json
-{{
-    "subtasks": [
-        {{
-            "title": "子任务标题",
-            "description": "子任务描述",
-            "type": "once",
-            "context": "子任务上下文",
-            "repeat_cycle": "never",
-            "start_date": "子任务开始时间",
-            "end_date": "子任务结束时间"
-        }}
-    ]
-}}
-```
-"""
 
 class SearchPlan(TypedDict):
     '''
@@ -245,6 +84,169 @@ class ComplexTaskPlan(TypedDict):
     subtasks: list[SubTask] | None = None
 
 class TaskPlanAgent:
+
+    __THINK_PROMPT = """
+    # 你的身份
+    你是一个计划辅助智能体,用户将告知你他的目标和执行情况,请你根据用户目标与当前执行情况与用户自身已经搜索过的一些信息。
+    请你根据这些信息判断是否需要进行搜索来补充额外信息。
+
+    # 输入说明
+    - 用户目标: 用户像达成的最终目标。
+    - 用户过往执行情况: 根据用户计划执行情况所总结的一段文字,用来说明用户整体的执行情况。
+    - 用户近期执行情况: 用户最近几次执行情况的日志,用来说明用户最近的执行情况。
+    - 用户搜索结果: 用户已经搜索过的一些结果,用来说明用户已经搜索过的内容。
+    - 知识库描述: 知识库的描述,你可以根据知识库说明判断是否需要进行知识库搜索。
+
+    # 工作流程
+    1. 你需要通读用户目标与执行情况和用户的搜索结果,并进行理解。
+    2. 你需要根据以上信息,判断用户是否在按计划实现自己的目标。
+    3. 无论用户是否在按计划实现目标,你需要根据以上信息,判断依靠你自身知识是否能满足用户目标。
+    4. 如果不能,你需要生成一个搜索计划,后续用户搜索后会将搜索结果输入给你,以便你再次执行上述任务。
+
+    # 用户目标
+    ## {task_title}
+    {task_description}
+
+    # 用户过往执行情况
+    {task_context}
+
+    # 用户近期执行情况
+    {task_executionutions}
+
+    # 用户搜索结果
+    {search_results}
+
+    # 知识库描述
+    {knowledge_description}
+
+    # 输出结构
+    ```json
+    {{
+        "search_params": [
+            {{
+                "search_type": "rag_only",
+                "search_content": "用户目标"
+            }}
+        ],
+        "count": 0,
+        "is_need_search": true
+    }}
+    ```
+    """
+
+    __SUMMARY_PROMPT = """
+    # 你的身份
+    你是一个计划辅助智能体,你需要结合用户提供的资料,根据用户的目标与执行情况对用户过往执行情况进行规划。并生成未来执行的建议。以markdown格式输出。
+    请注意: 只输入markdown格式的过往执行情况与未来执行建议,禁止输出任何无关文字。
+
+    # 输入说明
+    - 用户目标: 用户像达成的最终目标。
+    - 用户过往执行情况: 根据用户计划执行情况所总结的一段文字,用来说明用户整体的执行情况。
+    - 用户近期执行情况: 用户最近几次执行情况的日志,用来说明用户最近的执行情况。
+    - 用户搜索结果: 用户已经搜索过的一些结果,用来说明用户已经搜索过的内容。
+
+    # 用户目标
+    ## {task_title}
+    {task_description}
+
+    # 用户过往执行情况
+    {task_context}
+
+    # 用户近期执行情况
+    {task_executionutions}
+
+    # 用户搜索结果
+    {search_results}
+
+    """
+
+    __REPEAT_TASK_PROMPT = """
+    ## 你的身份
+    你是一个计划智能体,用户将提供给你一个长期目标,你需要将用户的长期目标拆解为多个短期目标,并返回短期目标的列表。
+    **请注意** 一次最多生成一周(7天)内的短期目标。
+
+    ## 输入参数说明
+    - 当前时间: 当前时间,格式为YYYY-MM-DD HH:MM:SS
+    - 本日为星期几: 本日为星期几,格式为0-6,0表示星期日
+    - 用户目标: 用户目标的标题
+    - 用户目标描述: 用户目标的详细描述
+    - 用户目标上下文: 用户目标的过往执行情况和未来执行方向。
+    - 目标开始时间: 用户目标的开始时间
+    - 目标结束时间: 用户目标的结束时间
+    - 重复周期: never,weekly:1,3,5/monthly:1,15,20 表示不重复,每周重复1,3,5号,每月重复1,15,20号
+
+    ## 工作流程
+    1. 根据用户目标标题和用户目标描述完全理解用户目标。
+    2. 结合用户目标和用户目标上下文,分析出用户目标当前的执行情况与未来执行方向。
+    3. 结合当前日期和重复周期,计算本周应创建多少短期目标与具体执行日期。
+    4. 根据每个执行日期与未来执行方向,生成短期目标的内容和标题。
+
+    ## 输出参数
+    - executions: 生成的执行短期目标列表。
+        - title: 生成的短期目标标题,20个字以内。
+        - content: 生成的短期目标详情,执行建议等信息,格式为markdown格式,500个字以内。
+        - execution_date: 生成的短期目标执行时间,格式为YYYY-MM-DD
+
+    ## 输入参数
+    - 当前时间: {current_time}
+    - 本日为星期几: {current_day}
+    - 用户目标: {title} 
+    - 用户目标描述: {description}
+    - 用户目标上下文: {task_context}
+    - 目标开始时间: {start_date}
+    - 目标结束时间: {end_date}
+    - 重复周期: {repeat_cycle} 
+    """
+
+    __SUB_TASK_PROMPT = """
+    ## 你的身份
+    你是一个计划辅助智能体,现在用户有一个复杂的目标(主任务)需要实现,请你按照规则帮用户将复杂目标拆分为子任务。以更好的逐步实现用户目标。
+
+    ## 拆分原则
+    - 子任务数量不超过6个。
+    - 子任务类型只能为once或repeat。
+    - 子任务描述为当前任务为了完成主任务需要做的事情,语言简练,不能超过200个字。
+    - 子任务上下文必须包含子任务的详细描述与后续执行建议,用于AI规划待办事项。 1000字以内。
+    - 子任务开始时间和结束时间必须在主任务的开始时间和结束时间之间。
+    - 当子任务为repeat类型时,必须包含重复周期。重复周期格式为: weekly:1,3,5/monthly:1,15,20 代表 每周重复1,3,5号,每月重复1,15,20号。
+
+    ## 用户主任务
+    ## {task_title}
+    {task_description}
+    ## 用户主任务上下文
+    {task_context}
+    ## 用户主任务开始时间
+    {start_date}
+    ## 用户主任务结束时间
+    {end_date}
+
+    ## 子任务字段说明
+    title: 子任务标题
+    description: 子任务描述
+    type: 子任务类型,once/repeat
+    context: 子任务上下文,用于AI规划待办事项
+    repeat_cycle: 子任务重复周期,never/weekly:1,3,5/monthly:1,15,20
+    start_date: 子任务开始时间
+    end_date: 子任务结束时间
+
+    ## 输出结构
+    ```json
+    {{
+        "subtasks": [
+            {{
+                "title": "子任务标题",
+                "description": "子任务描述",
+                "type": "once",
+                "context": "子任务上下文",
+                "repeat_cycle": "never",
+                "start_date": "子任务开始时间",
+                "end_date": "子任务结束时间"
+            }}
+        ]
+    }}
+    ```
+    """
+
     '''
     任务计划智能体
     '''
@@ -267,7 +269,7 @@ class TaskPlanAgent:
         Returns:
             生成的子目标对象列表
         '''
-        prompt = sub_task_prompt.format(
+        prompt = TaskPlanAgent.__SUB_TASK_PROMPT.format(
             task_title = task.title,
             task_description = task.description,
             task_context = task.context,
@@ -310,7 +312,7 @@ class TaskPlanAgent:
         Returns:
             重复任务执行列表
         '''
-        prompt = repeat_task_prompt.format(
+        prompt = TaskPlanAgent.__REPEAT_TASK_PROMPT.format(
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             current_day = datetime.now().weekday(),
             title = task.title,
@@ -345,7 +347,7 @@ class TaskPlanAgent:
         '''
         task = state["task"]
         not_summaried_executions = [f"执行标题:{e.title} \n 执行内容:{e.content} \n 执行时间:{e.execution_date}\n 执行结果:{e.execution_result}" for e in state["task_executionutions"] if not e.summaried]
-        prompt = think_prompt.format(
+        prompt = TaskPlanAgent.__THINK_PROMPT.format(
             task_title = task.title,
             task_description = task.description,
             task_context = task.context,
@@ -396,7 +398,7 @@ class TaskPlanAgent:
         '''
         摘要节点
         '''
-        prompt = summary_prompt.format(
+        prompt = TaskPlanAgent.__SUMMARY_PROMPT.format(
             task_title = state["task"].title,
             task_description = state["task"].description,
             task_context = state["task"].context,
@@ -436,3 +438,4 @@ class TaskPlanAgent:
         }
         context = self.agent.invoke(state)
         return context
+

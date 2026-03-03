@@ -431,13 +431,10 @@ async def task_chat(
         {task.context}
 
         """
-
-        if child_task_context:
-            contxt += child_task_context
-
         # 接入目标提示词 进行对话
-        chat_service = ChatService(user_id=current_user.id, db=db)
-        return StreamingResponse(chat_service.chat(message.input, contxt), media_type="text/event-stream")
+        chat_service = ChatService(next(get_db()),current_user.id)
+    
+        return StreamingResponse(chat_service.chat_with_task_info(contxt,child_task_context,message.input), media_type="text/event-stream")
     except HTTPException:
         raise
     except Exception as e:
