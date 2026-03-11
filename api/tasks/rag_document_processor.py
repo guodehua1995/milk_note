@@ -60,14 +60,14 @@ class RagDocumentProcessor:
         """
         处理状态为pending的RagDocument
         """
-        logger.info("开始处理状态为pending的RagDocument...")
+        logger.debug("开始处理状态为pending的RagDocument...")
         
         try:
             # 查询所有状态为pending的RagDocument
             with next(get_db()) as db:
                 pending_docs = db.query(RagDocument).filter(RagDocument.status == "pending").all()
             
-            logger.info(f"找到 {len(pending_docs)} 个状态为pending的RagDocument")
+            # logger.info(f"找到 {len(pending_docs)} 个状态为pending的RagDocument")
             
             if not pending_docs:
                 return
@@ -129,7 +129,7 @@ class RagDocumentProcessor:
 
     def process_embdding_documents(self):
         """处理状态为embedding的document"""
-        logger.info("开始处理状态为embedding的document...")
+        logger.debug("开始处理状态为embedding的document...")
     
         # 单个Session处理所有文档（安全，因为顺序执行）
         with next(get_db()) as session:
@@ -138,7 +138,7 @@ class RagDocumentProcessor:
                     RagDocument.status == DocumentStatus.EMBEDDING.value
                 ).all()
                 
-                logger.debug(f"找到 {len(splited_docs)} 个状态为splited的RagDocument")
+                # logger.debug(f"找到 {len(splited_docs)} 个状态为splited的RagDocument")
                 
                 if not splited_docs:
                     return

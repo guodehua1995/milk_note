@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.types import Command
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
-from api.services.agents.models import SearchType
+from api.agents.models import SearchType
 from api.services.tools import web_search
 from api.models import Task, TaskExecution
 from typing import List

@@ -1,11 +1,14 @@
 
 from fastapi import HTTPException
+from api.core import get_logger
 from api.models import RagDocument, RagChunks
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from api.services.rag import get_embedding
+from .rag import get_embedding
+
+logger = get_logger(__name__)
 
 class DocumentService:
     def __init__(self, db: Session):
@@ -211,6 +214,16 @@ class DocumentService:
             "total_failed": len(failed_ids)
         }
 
+    def search_similar_chunks_for_task(self, content: str, task_id: int, limit: int = 5, threshold: float = 0.8)->List[Dict[str, Any]]:
+         # 将content转换为向量
+        try:
+            # logger.debug(f"正在为任务 {task_id} 搜索相似切片，查询内容: {content}, 阈值: {threshold}")
+            query_vector = get_embedding(content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return RagChunks.search_similar_chunks_for_task(self.db, query_vector, task_id, limit, threshold)
+
     def search_similar_chunks(self, content: str, user_id: str, limit: int = 5, threshold: float = 0.8) -> List[Dict[str, Any]]:
         """
         搜索相似的文档切片。
@@ -232,3 +245,36 @@ class DocumentService:
             raise HTTPException(status_code=500, detail=str(e))
 
         return RagChunks.search_similar_chunks(self.db, query_vector, user_id, limit, threshold)
+
+    def get_documents_by_task_id(self, task_id: int, user_id: str) -> Optional[List[RagDocument]]:
+        """
+        根据任务ID获取文档。
+
+        参数:
+            task_id (str): 任务ID。
+            user_id (str): 用户ID，用于权限验证。
+        
+        返回:
+            Optional[List[RagDocument]]: 文档对象列表，如果不存在则返回None。
+        """
+        return self.db.query(RagDocument).filter(
+            and_(
+                RagDocument.task_id == task_id,
+                RagDocument.user_id == user_id,
+                RagDocument.is_deleted == False
+            )
+        ).all()
+    
+    def bind_task_to_documents(self, task_id: int, document_ids: List[str], user_id: str) -> dict:
+        """
+        将任务绑定到文档。
+        """
+        for doc_id in document_ids:
+            document = self.get_document_by_id(doc_id, user_id)
+            if document:
+                document.task_id = task_id
+        self.db.commit()
+        return {"message": "文档绑定成功"}
+       
+
+

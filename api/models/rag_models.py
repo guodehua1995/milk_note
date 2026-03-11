@@ -14,7 +14,7 @@ class RagDocument(Base):
     __tablename__ = "rag_documents"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="知识库文档ID")
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), comment="用户ID")
-    task_id: Mapped[str] = mapped_column(String(36), nullable=True, comment="事项ID")
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), nullable=True, comment="事项ID")
     type: Mapped[str] = mapped_column(String(20), default="pdf", comment="文档类型")
     file_name: Mapped[str] = mapped_column(String(255), comment="文档名称")
     file_key: Mapped[str] = mapped_column(String(255), comment="文档路径")
@@ -160,6 +160,46 @@ class RagChunks(Base):
             if 1 / (1 + distance) >= threshold
         ]
     
+    @classmethod
+    def search_similar_chunks_for_task(cls, db: Session, query_vector: List[float],  task_id: int, limit: int = 5, threshold: float = 0.01) -> List[Dict[str, Any]]:
+        """
+        搜索相似的文档切片
+        
+        Args:
+            db: 数据库会话
+            query_vector: 查询向量
+            task_id: 事项ID，用于过滤
+            limit: 返回结果数量
+            threshold: 相似度阈值
+        
+        Returns:
+            相似切片列表，包含相似度分数
+        """
+        # 使用pgvector的向量相似度查询
+        results = db.query(
+            cls
+        ).add_columns(
+            cls.vector.l2_distance(query_vector).label("distance")
+        ).filter(
+            cls.task_id == task_id
+        ).order_by(
+            "distance"
+        ).limit(limit).all()
+        
+        # 转换为字典列表，包含相似度分数
+        return [
+            {
+                "id": chunk.id,
+                "document_id": chunk.document_id,
+                "content": chunk.content,
+                "path": chunk.path,
+                "metadata": chunk.metadata_,
+                "similarity": 1 / (1 + distance)  # 将距离转换为相似度分数(0-1)
+            }
+            for chunk, distance in results
+            if 1 / (1 + distance) >= threshold
+        ]
+
     @classmethod
     def delete_chunks_by_document_id(cls, db: Session, document_id: str, user_id: Optional[int] = None) -> int:
         """

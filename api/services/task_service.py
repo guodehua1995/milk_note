@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from api.models import Task, TaskExecution
 from api.core import get_logger
 from api.core.constants import TaskType, GoalStatus, ExecutionStatus
-from api.services.agents import TaskPlanAgent, TaskChatAgent
+from api.agents import TaskPlanAgent, TaskChatAgent
 
 logger = get_logger(__name__)
 
@@ -438,6 +438,18 @@ class TaskService:
         '''
         return Task.get_subtasks_by_task_id(self.db, task_id)
 
+    def bind_documents_to_task(self, task_id: int, document_ids: List[int]) -> None:
+        '''
+        将文档绑定到任务
+        
+        Args:
+            task_id: 任务ID
+            document_ids: 文档ID列表
+        '''
+        task = self.get_task_detail(task_id)
+        if not task or task.user_id != self.user_id:
+            raise ValueError("目标不存在或无权操作")
+        task.document_ids = ",".join(map(str, document_ids))
     
 
 class TaskExecutionService:

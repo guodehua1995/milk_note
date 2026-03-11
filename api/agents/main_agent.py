@@ -9,13 +9,13 @@ from langgraph.graph import StateGraph, START, END
 from api.services.tools import TOOL_INFO
 import operator
 from langgraph.checkpoint.memory import InMemorySaver
-import api.services.agents.prompts as prompts
-import api.services.agents.models as agent_models
+import api.agents.prompts as prompts
+import api.agents.models as agent_models
 import json
 from typing import List
 from api.models import ChatHistory
 import random
-from ..document_service import DocumentService
+from api.services.document_service import DocumentService
 
 logger = get_logger(__name__)
 

@@ -9,7 +9,7 @@ from api.schemas.task import (
     TaskExecutionCreate, TaskExecutionUpdate, TaskExecutionResponse, TaskExecutionListResponse,
     BatchExecutionCreate, AIPlanResponse, ProgressResponse, TaskChatMessage
 )
-from api.services import TaskService, TaskExecutionService, ChatService
+from api.services import TaskService, TaskExecutionService, ChatService, DocumentService
 from api.core import logger
 
 
@@ -421,16 +421,7 @@ async def task_chat(
 
         child_task_context = __sub_task_context([t for t in task_service.get_child_tasks(message.task_id) if t.status != GoalStatus.CANCELLED.value ])
 
-        contxt = f"""
-        #{task.title}
-
-        ## 当前目标描述
-        {task.description}
-
-        ## 当前目标执行情况
-        {task.context}
-
-        """
+       
         # 接入目标提示词 进行对话
         chat_service = ChatService(next(get_db()),current_user.id)
     
@@ -440,6 +431,40 @@ async def task_chat(
     except Exception as e:
         logger.error(f"任务对话失败: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="任务对话失败")
+
+@router.post("/bind/documents")
+def bind_documents_to_task(
+    task_id: int,
+    document_ids: List[str],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """
+    绑定文档到任务
+    - **task_id**: 任务ID
+    - **document_ids**: 文档ID列表
+    """
+    try:
+        task_service = TaskService(db, current_user.id)
+        document_service = DocumentService(db)
+        # 验证文档是否存在且属于当前用户
+        for doc_id in document_ids:
+            document = document_service.get_document_by_id(doc_id,current_user.id)
+            if not document:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"文档 {doc_id} 不存在")
+            if document.user_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"文档 {doc_id} 不属于当前用户")
+            if document.task_id is not None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"文档 {doc_id} 已绑定到其他任务")
+        document_service.bind_task_to_documents(task_id, document_ids,current_user.id)
+        return {"message": "文档绑定成功"}
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        logger.error(f"绑定文档到任务失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="绑定文档到任务失败")
 
 def __sub_task_context(child_tasks: List[Task]):
     """
