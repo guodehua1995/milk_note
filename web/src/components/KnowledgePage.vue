@@ -359,13 +359,54 @@ export default {
   flex-direction: column;
   height: 100vh;
   background-color: #f5f7fa;
+  width: 100%;
+  overflow: hidden;
 }
 
 .main-content {
-  margin-top: 60px;
+  margin-top: 5vh;
   padding: 20px;
   overflow-y: auto;
-  height: calc(100vh - 60px);
+  height: calc(100vh - 5vh);
+  width: 100%;
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 大屏幕优化 */
+@media (min-width: 1400px) {
+  .main-content {
+    max-width: 1400px;
+  }
+  
+  .page-header {
+    padding-bottom: 20px;
+  }
+  
+  .page-header h2 {
+    font-size: 24px;
+  }
+  
+  .list-header {
+    padding: 16px 24px;
+  }
+  
+  .item-content {
+    padding: 18px 24px;
+  }
+  
+  .document-name {
+    font-size: 15px;
+  }
+  
+  .modal-content {
+    max-width: 700px;
+  }
+  
+  .document-view-modal, .chunks-modal {
+    max-width: 900px;
+  }
 }
 
 .page-header {

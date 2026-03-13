@@ -339,12 +339,42 @@ export default {
   flex-direction: column;
   height: 100vh;
   background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
-  max-width: 800px;
+  max-width: 90%;
   margin: 0 auto;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
   border-radius: 20px;
   overflow: hidden;
-  padding-top: 60px;
+  padding-top: 5vh;
+}
+
+/* 大屏幕优化 */
+@media (min-width: 1000px) {
+  .chat-container {
+    max-width: 900px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .chat-container {
+    max-width: 1100px;
+  }
+  
+  .message-content {
+    max-width: 75%;
+  }
+  
+  .message-text {
+    font-size: 16px;
+  }
+  
+  .chat-messages {
+    padding: 24px;
+    gap: 20px;
+  }
+  
+  .chat-input-area {
+    padding: 20px 24px 12px;
+  }
 }
 
 .chat-header {

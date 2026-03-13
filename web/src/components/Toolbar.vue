@@ -54,7 +54,7 @@ export default {
   background-color: #ffffff;
   border-bottom: 1px solid #eaeaea;
   padding: 0 20px;
-  height: 60px;
+  height: 5vh;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: fixed;
   top: 0;
