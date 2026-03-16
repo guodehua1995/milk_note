@@ -466,6 +466,36 @@ def bind_documents_to_task(
         logger.error(f"绑定文档到任务失败: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="绑定文档到任务失败")
 
+
+@router.get("/{task_id}/subtasks")
+async def get_task_subtasks(
+    task_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """
+    获取任务的子任务树
+    
+    - **task_id**: 任务ID
+    
+    返回格式: {id: name, children: []}
+    """
+    try:
+        task_service = TaskService(db, current_user.id)
+        # 验证任务是否存在
+        task = task_service.get_task_detail(task_id)
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+        
+        # 构建子任务树
+        subtask_tree = build_subtask_tree(task_service, task_id)
+        return subtask_tree
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取子任务树失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取子任务树失败")
+
 def __sub_task_context(child_tasks: List[Task]):
     """
     获取子任务的上下文
@@ -483,3 +513,34 @@ def __sub_task_context(child_tasks: List[Task]):
 
         """
     return sub_task_context
+
+
+def build_subtask_tree(task_service: TaskService, task_id: int) -> dict:
+    """
+    构建子任务树结构
+    
+    Args:
+        task_service: TaskService 实例
+        task_id: 任务ID
+    
+    Returns:
+        子任务树结构，格式为 {id: name, children: []}
+    """
+    task = task_service.get_task_detail(task_id)
+    if not task:
+        return {}
+    
+    subtree = {
+        "id": task.id,
+        "name": task.title,
+        "children": []
+    }
+    
+    # 获取子任务
+    child_tasks = task_service.get_child_tasks(task_id)
+    for child_task in child_tasks:
+        # 递归构建子任务的子任务树
+        child_subtree = build_subtask_tree(task_service, child_task.id)
+        subtree["children"].append(child_subtree)
+    
+    return subtree

@@ -266,10 +266,10 @@ export default {
     // 获取状态文本
     const getStatusText = (status) => {
       const statusMap = {
-        'NOT_STARTED': '未开始',
-        'IN_PROGRESS': '进行中',
-        'COMPLETED': '已完成',
-        'CANCELLED': '已取消'
+        'not_started': '未开始',
+        'in_progress': '进行中',
+        'completed': '已完成',
+        'cancelled': '已取消'
       };
       return statusMap[status] || status;
     };

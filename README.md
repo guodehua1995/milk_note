@@ -23,6 +23,7 @@ web: 根目录
 
 # 项目运行
 ## 启动命令
-后端 uvicorn api.main:app --reload
-前端 npm run serve
+  后端 uvicorn api.main:app --reload
+  
+  前端 npm run serve
 ## 接口文档

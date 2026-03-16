@@ -3,9 +3,9 @@ import AuthPage from './components/AuthPage.vue'
 import ChatPage from './components/ChatPage.vue'
 import KnowledgePage from './components/KnowledgePage.vue'
 import TaskPage from './components/TaskPage.vue'
-import TaskDetail from './components/TaskDetail.vue'
-import RecurringTaskDetail from './components/RecurringTaskDetail.vue'
-import OKRDetail from './components/OKRDetail.vue'
+import TaskDetailOnce from './components/TaskDetailOnce.vue'
+import TaskDetailRepeat from './components/TaskDetailRepeat.vue'
+import TaskDetailComplex from './components/TaskDetailComplex.vue'
 
 const routes = [
   {
@@ -37,20 +37,20 @@ const routes = [
   },
   {
     path: '/task-detail/:id',
-    name: 'TaskDetail',
-    component: TaskDetail,
+    name: 'TaskDetailOnce',
+    component: TaskDetailOnce,
     props: () => ({ username: localStorage.getItem('username') || '用户' })
   },
   {
     path: '/recurring-task-detail/:id',
-    name: 'RecurringTaskDetail',
-    component: RecurringTaskDetail,
+    name: 'TaskDetailRepeat',
+    component: TaskDetailRepeat,
     props: () => ({ username: localStorage.getItem('username') || '用户' })
   },
   {
     path: '/okr-detail/:id',
-    name: 'OKRDetail',
-    component: OKRDetail,
+    name: 'TaskDetailComplex',
+    component: TaskDetailComplex,
     props: () => ({ username: localStorage.getItem('username') || '用户' })
   }
 ]

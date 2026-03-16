@@ -106,3 +106,12 @@ export const batchCreateExecutions = (taskId, batchData) => {
 export const taskChat = (message) => {
   return api.post('/tasks/chat', message)
 }
+
+/**
+ * 获取任务的子任务树
+ * @param {number} taskId - 任务ID
+ * @returns {Promise} - 返回子任务树结构
+ */
+export const getTaskSubtasks = (taskId) => {
+  return api.get(`/tasks/${taskId}/subtasks`)
+}
