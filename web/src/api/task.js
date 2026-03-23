@@ -14,6 +14,20 @@ export const getTasks = (params = {}) => {
 }
 
 /**
+ * 获取聊天记录
+ * @param {*} page 
+ * @param {*} page_size 
+ * @returns 
+ */
+export const getChatHistory = (page = 1, page_size = 10) => {
+    return api.get('/chat/history', {
+      params: {
+        page,
+        page_size
+      }
+    })
+  }
+/**
  * 获取任务详情
  * @param {number} taskId - 任务ID
  * @returns {Promise} - 返回任务详情

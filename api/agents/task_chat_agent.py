@@ -1,4 +1,4 @@
-from typing import TypedDict, Literal,Iterator
+from typing import TypedDict, Literal,Iterator,AsyncGenerator
 
 from langchain.messages import AnyMessage, SystemMessage, HumanMessage,AIMessage
 from api.core import settings,get_logger,get_db
@@ -8,6 +8,8 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
 from api.services.tools import web_search
 from api.models import ChatHistory
+from api.agents.base_agent import BaseAgent
+import json
 
 logger = get_logger(__name__)
 class SearchTask(TypedDict):
@@ -41,7 +43,7 @@ class TaskChatState(TypedDict):
 
     search_plan: SearchPlan | None = None
 
-class TaskChatAgent:
+class TaskChatAgent(BaseAgent):
     __THINK_PROMPT="""
     # 你的身份
     你是一个资料查询助手,用户为自己设立了一个目标。现在用户针对这个目标提出了一些问题。请你结合用户输入和目标内容,判断是否需要查询额外的资料,如果需要的话,则按指定结构输出查询内容。
@@ -106,6 +108,13 @@ class TaskChatAgent:
             api_key= settings.MILK_NOTE_API_KEY,
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             model="qwen3.5-plus",
+            extra_body={"enable_thinking": False},
+            timeout=60
+        )
+        self.think_llm = ChatOpenAI(
+            api_key= settings.MILK_NOTE_API_KEY,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            model="qwen3.5-plus",
             timeout=60
         )
         self.agent = self.__create_agent()
@@ -113,7 +122,7 @@ class TaskChatAgent:
         self.task_id = task_id
         self.db = next(get_db())
         # 延迟导入，避免循环依赖
-        from api.services import DocumentService,TaskService
+        from api.services import DocumentService,TaskService,ChatService
         self.document_service = DocumentService(self.db)
         self.task_service = TaskService(self.db,self.user_id)
         
@@ -132,7 +141,7 @@ class TaskChatAgent:
             has_documents= state['has_documents'],
             child_tasks=child_tasks_info
         )
-        logger.debug(f"用户提问已到达规划节点: {state['messages'][-1].content}")
+        logger.debug(f"用户提问已到达规划节点: {state['messages'][-1].content} \n 规划节点提示词: {prompt}")
         messages = [SystemMessage(content=prompt)]
         messages.extend(state["messages"])
         try:
@@ -225,7 +234,7 @@ class TaskChatAgent:
         graph.add_edge("answer", END)
         return graph.compile(checkpointer=InMemorySaver())
 
-    def ask_stream(self, user_message: str) -> Iterator[dict]:
+    async def ask_stream(self, user_message: str) -> AsyncGenerator[str, None]:
         '''
         任务咨询
         '''
@@ -260,6 +269,12 @@ class TaskChatAgent:
         # 直接使用ChatHistory模型获取聊天记录
         chat_historys = ChatHistory.get_history_page(self.db, self.user_id, 1, 10)[::-1]
         
+        chat_id = ChatHistory.create(self.db,
+            user_id=self.user_id,
+            type="user",
+            content=user_message
+        )
+
         # 转换为消息格式
         history_messages = []
         for h in chat_historys:
@@ -278,4 +293,19 @@ class TaskChatAgent:
             "has_documents": has_documents,
             "messages": history_messages+[HumanMessage(content=user_message)]
         }
-        return self.agent.stream(state,{"configurable": {"thread_id": str(self.user_id)}},stream_mode="messages")
+        assistant_message = ""
+        # 处理流式响应
+        for m, meta_data in self.agent.stream(state,{"configurable": {"thread_id": str(self.user_id)}},stream_mode="messages"):
+            formatted_message =  self.format_stream_message(m, meta_data)
+            assistant_message += formatted_message["content"]
+            yield json.dumps(formatted_message, ensure_ascii=False) + '\n'
+        
+        # 发送结束消息
+        yield json.dumps({"type": "end", "content": "模型思考结束"}, ensure_ascii=False)
+
+        ChatHistory.create(self.db,
+            user_id=self.user_id,
+            type="assistant",
+            content=assistant_message,
+            reply_id=chat_id
+        )

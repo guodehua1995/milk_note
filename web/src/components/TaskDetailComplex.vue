@@ -122,60 +122,68 @@
         </div>
         
       </div>
-      <div class="chat-section">
+      <div class="chat-window">
           <div class="chat-header">
             <h3>⭐奶小豆⭐</h3>
           </div>
-          <div class="chat-container">
-            <div class="chat-messages" ref="messagesContainer">
-              <div 
-                v-for="(message, index) in chatMessages" 
-                :key="index"
-                class="chat-message"
-                :class="message.sender === 'user' ? 'user-message' : 'agent-message'"
-              >
-                <div class="message-avatar" v-if="message.sender === 'agent'">
-                  <span class="bot-initial">🤖</span>
-                </div>
-                <div class="message-content">
-                  <div class="message-text">
-                    {{ message.content }}
+          <div class="messages" ref="messagesContainer">
+            <div 
+              v-for="(message, index) in chatMessages" 
+              :key="index"
+              class="message"
+              :class="message.sender === 'user' ? 'user' : 'agent'"
+            >
+              <div class="message-avatar" v-if="message.sender === 'agent'">
+                <span class="chat-bot-initial">🤖</span>
+              </div>
+              <div class="message-content">
+                <div class="message-text" :class="{ 'is-loading': message.isTyping }">
+                  <div v-if="message.isTyping" class="chat-typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
-                  <div class="message-time">{{ message.timestamp }}</div>
+                  <div v-else v-html="formatMessage(message.content)"></div>
                 </div>
-                <div class="message-avatar" v-if="message.sender === 'user'">
-                  <span class="user-initial">{{ userInitial }}</span>
-                </div>
+                <div class="message-time" v-if="!message.isTyping">{{ message.timestamp }}</div>
+              </div>
+              <div class="message-avatar" v-if="message.sender === 'user'">
+                <span class="chat-user-initial">{{ userInitial }}</span>
               </div>
             </div>
           </div>
       </div>
-      <!-- Chat Input Area (Floating at bottom) -->
-      <div class="chat-input-section">
-        <div class="chat-input-area">
+    </div>
+    
+    <!-- Chat Input Area (Floating at bottom) -->
+    <div class="message-section">
+      <div class="message-area">
+        <div class="message-container">
           <textarea 
           v-model="chatInput" 
           placeholder="输入消息..."
-          class="chat-input"
+          class="message-input"
           @keydown.enter.exact="handleEnter"
           @keydown.enter.ctrl="handleCtrlEnter"
           @input="autoResize"
           ref="chatTextarea"
         ></textarea>
-          <button @click="sendMessage" class="send-button">发送</button>
+          <button @click="sendMessage" :disabled="!chatInput.trim() || sending" class="chat-send-btn">
+            <span v-if="!sending">发送</span>
+            <span v-else class="chat-loading-dot">●</span>
+          </button>
         </div>
       </div>
     </div>
-    
-    
   </div>
 </template>
 
 <script>
 import Toolbar from './Toolbar.vue';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getTaskDetail, taskChat, getTaskSubtasks } from '../api/task';
+import { getTaskDetail, getTaskSubtasks, getChatHistory } from '../api/task';
+import { marked } from 'marked';
 
 export default {
   name: 'TaskDetailComplex',
@@ -200,6 +208,7 @@ export default {
     const messagesContainer = ref(null);
     const chatTextarea = ref(null);
     const taskMap = ref({});
+    const sending = ref(false);
     
     // 计算当前选中的任务
     const selectedTask = computed(() => {
@@ -297,48 +306,169 @@ export default {
       }
     };
     
+    // 格式化消息内容（解析 markdown）
+    const formatMessage = (text) => {
+      // 使用marked库解析markdown文本
+      return marked.parse(text) || '';
+    };
+    
+    // 滚动到底部
+    const scrollToBottom = () => {
+      setTimeout(() => {
+        if (messagesContainer.value) {
+          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+        }
+      }, 100);
+    };
+    
+    // 加载聊天历史
+    const loadChatHistory = async () => {
+      try {
+        // 加载最近的聊天历史
+        const response = await getChatHistory(1, 10);
+        if (response && response.history && response.history.length > 0) {
+          // 加载历史消息
+          chatMessages.value = response.history.map(msg => ({
+            sender: msg.sender || (msg.type === 'assistant' ? 'agent' : 'user'),
+            content: msg.content,
+            timestamp: new Date(msg.timestamp || Date.now()).toLocaleTimeString()
+          }));
+          scrollToBottom();
+        }
+      } catch (error) {
+        console.error('加载聊天历史失败:', error);
+        // 保持默认消息
+      }
+    };
+    
     // 发送消息
     const sendMessage = async () => {
-      if (!chatInput.value.trim()) return;
+      if (!chatInput.value.trim() || sending.value) return;
       
       // 添加用户消息
-      chatMessages.value.push({
+      const userMessage = {
         sender: 'user',
         content: chatInput.value,
         timestamp: new Date().toLocaleTimeString()
-      });
+      };
+      chatMessages.value.push(userMessage);
+      
+      const userInput = chatInput.value;
+      chatInput.value = '';
+      autoResize();
+      
+      // 模拟发送消息
+      sending.value = true;
       
       try {
-        const response = await taskChat({
-          task_id: selectedTaskId.value,
-          input: chatInput.value
-        });
-        // 添加智能体回复
-        chatMessages.value.push({
+        // 添加一个正在输入的提示
+        const typingMessage = {
           sender: 'agent',
-          content: response,
-          timestamp: new Date().toLocaleTimeString()
+          isTyping: true,
+          timestamp: new Date()
+        };
+        chatMessages.value.push(typingMessage);
+        scrollToBottom();
+        
+        // 调用真实的API - 使用fetch处理流式响应
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${process.env.VUE_APP_API_BASE_URL || 'http://localhost:8000'}/api/tasks/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            task_id: selectedTaskId.value,
+            input: userInput 
+          })
         });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // 移除正在输入的提示
+        chatMessages.value.pop();
+        
+        // 添加机器人回复消息（初始为空）
+        const botResponse = {
+          sender: 'agent',
+          content: '',
+          timestamp: new Date().toLocaleTimeString()
+        };
+        const botMessageIndex = chatMessages.value.push(botResponse) - 1;
+        
+        // 处理流式响应
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');  // 明确指定UTF-8编码
+        let done = false;
+        let buffer = '';  // 用于处理可能的分割字符
+        
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          done = readerDone;
+          
+          if (value) {
+            const chunk = decoder.decode(value, { stream: !done });  // 对于最后一个块，不使用stream模式
+            // 将块添加到缓冲区
+            buffer += chunk+'\n';
+            
+            // 按行分割处理（因为后端可能返回多行JSON）
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';  // 保留最后一个不完整的行在缓冲区中
+            
+            for (const line of lines) {
+              if (line.trim()) {  // 忽略空行
+                try {
+                  const data = JSON.parse(line);
+                  
+                  // 只更新内容部分，忽略其他类型的消息
+                  if (data.type === 'assistant' && data.content) {
+                    chatMessages.value[botMessageIndex].content += data.content;
+                    scrollToBottom();
+                  } else if (data.type === 'start' || data.type === 'end') {
+                    // 可以根据需要处理开始和结束消息
+                    console.log('Stream event:', data.type, data.content);
+                  }
+                } catch (e) {
+                  console.error('解析JSON失败:', e);
+                  // 如果不是有效的JSON，直接添加到内容中
+                  chatMessages.value[botMessageIndex].content += line;
+                  scrollToBottom();
+                }
+              }
+            }
+          }
+        }
+        
+        // 处理缓冲区中剩余的内容
+        if (buffer) {
+          try {
+            const data = JSON.parse(buffer);
+            if (data.type === 'assistant' && data.content) {
+              chatMessages.value[botMessageIndex].content += data.content;
+              scrollToBottom();
+            }
+          } catch (e) {
+            // 如果不是有效的JSON，直接添加到内容中
+            chatMessages.value[botMessageIndex].content += buffer;
+            scrollToBottom();
+          }
+        }
       } catch (error) {
         console.error('发送消息失败:', error);
+        // 移除正在输入的提示
+        chatMessages.value.pop();
         // 添加错误消息
         chatMessages.value.push({
           sender: 'agent',
           content: '抱歉，智能体暂时无法响应，请稍后再试。',
           timestamp: new Date().toLocaleTimeString()
         });
-      } finally {
-        // 清空输入框
-        chatInput.value = '';
-        // 滚动到底部
         scrollToBottom();
-      }
-    };
-    
-    // 滚动到底部
-    const scrollToBottom = () => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+      } finally {
+        sending.value = false;
       }
     };
     
@@ -377,8 +507,16 @@ export default {
     };
     
     // 组件挂载时加载数据
-    onMounted(() => {
-      loadTaskDetail();
+    onMounted(async () => {
+      await loadTaskDetail();
+      await loadChatHistory();
+      // 滚动到底部
+      scrollToBottom();
+    });
+    
+    // 监听输入框变化，自动调整高度
+    watch(chatInput, () => {
+      autoResize();
     });
     
     return {
@@ -392,12 +530,15 @@ export default {
       messagesContainer,
       chatTextarea,
       userInitial,
+      sending,
       toggleNav,
       selectTask,
       sendMessage,
       handleEnter,
       handleCtrlEnter,
       autoResize,
+      formatMessage,
+      loadChatHistory,
       getTaskTypeText,
       getStatusText,
       formatDate
@@ -407,6 +548,12 @@ export default {
 </script>
 
 <style scoped>
+@import '../styles/chat-window.css';
+
+.message-area {
+  background : #ffffff00;
+  border-top : none;
+}
 
 .task-detail-page {
   min-height: 98vh;
@@ -427,7 +574,7 @@ export default {
   grid-template-columns: 4% 1fr 300px;
   gap: 0;
   transition: grid-template-columns 0.3s ease;
-  width: 50%;
+  width: 40%;
 }
 
 /* 展开状态下的布局 */
@@ -703,181 +850,51 @@ export default {
 }
 
 /* 右侧AI对话 */
-.chat-section {
-  background-color: var(--color-white);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-md);
-  box-shadow: var(--box-shadow-sm);
-  display: flex;
-  flex-direction: column;
-  width: 30%;
-  height: 95%;
-}
-
-.chat-header {
-  margin-bottom: var(--spacing-md);
-}
-
-.chat-header h3 {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  color: var(--color-gray-dark);
-}
-
-.chat-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 400px;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: var(--spacing-md);
-  padding: var(--spacing-md);
-  background-color: var(--color-gray-light);
-  border-radius: var(--border-radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-
-.chat-message {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-  max-width: 80%;
-}
-
-.user-message {
-  align-self: flex-end;
-  flex-direction: row-reverse;
-  margin-left: auto;
-}
-
-.agent-message {
-  align-self: flex-start;
-}
-
-.message-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(45deg, #ff9a9e, #fad0c4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.bot-initial {
-  font-size: 18px;
-}
-
-.message-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-}
-
-.message-text {
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--border-radius-md);
-  font-size: var(--font-size-sm);
-  line-height: 1.4;
-  word-wrap: break-word;
-}
-
-.user-message .message-text {
-  background-color: var(--color-task);
-  color: var(--color-white);
-  border-bottom-right-radius: 4px;
-}
-
-.agent-message .message-text {
-  background-color: var(--color-white);
-  color: var(--color-gray-dark);
-  border-bottom-left-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.message-time {
-  font-size: var(--font-size-xs);
-  color: var(--color-gray-medium);
-  text-align: right;
-  padding-right: var(--spacing-xs);
-}
-
-.chat-input-area {
-  display: flex;
-  gap: var(--spacing-sm);
-  justify-content: center; 
-  align-items: flex-end; 
-}
-
-.chat-input {
-  flex: 1;
-  padding: var(--spacing-xs);
-  border: 1px solid var(--color-task-border);
-  border-radius: var(--border-radius-md);
-  font-size: var(--font-size-md);
-  transition: border-color 0.3s ease;
-  resize: none;
-  min-height: 20px;
-  max-height: 120px; /* 6行 * 20px/行 */
-  overflow-y: auto;
-  line-height: 20px;
-}
-
-.chat-input:focus {
-  border-color: var(--color-task);
-  outline: none;
-}
-
-.send-button {
-  padding: 0 var(--spacing-lg);
-  background-color: var(--color-task);
-  color: var(--color-white);
-  border: none;
-  border-radius: var(--border-radius-md);
-  font-size: var(--font-size-md);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 50px;
-  margin: 0 auto; /* 添加这一行，实现横向居中 */
-}
-
-.send-button:hover {
-  background-color: var(--color-task-hover);
-  transform: scale(1.05);
+.chat-window {
+  width: 45%;
+  height: 90%;
 }
 
 /* 聊天输入区域 (悬浮在页面下方) */
-.chat-input-section {
+.message-section {
   position: fixed;
   bottom: 20px;
   left: 50%; /* 将元素左侧定位到屏幕中心 */
   transform: translateX(-50%); /* 向左移动元素自身宽度的一半，实现水平居中 */
   width: 80%;
-  /* background-color: var(--color-white);
+  background-color: transparent;
   border-radius: var(--border-radius-lg);
-  box-shadow: var(--box-shadow-up-lg); */
+  box-shadow: none;
   z-index: 1000;
-  /* border: 1px solid var(--color-task-light); */
+  border: none;
+  padding: var(--spacing-ls);
 }
 
-/* 调整主内容区域的底部 padding，确保内容不会被悬浮的输入区域遮挡 */
-/* .main-content {
-  padding-bottom: 120px;
-} */
+.chat-send-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(45deg, #ff6b6b, #ffa500);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.chat-send-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
 
 /* 响应式设计 */
 @media (max-width: 768px) {
@@ -895,14 +912,20 @@ export default {
     grid-column: 1;
   }
   
-  .chat-section {
+  .chat-window {
     order: 3;
     grid-column: 1;
     margin-top: var(--spacing-lg);
+    width: 100%;
   }
   
   .subtask-nav-section.expanded {
     width: 100%;
+  }
+  
+  .message-section {
+    width: 95%;
+    bottom: 10px;
   }
 }
 </style>

@@ -9,6 +9,7 @@ from api.schemas.task import (
     TaskExecutionCreate, TaskExecutionUpdate, TaskExecutionResponse, TaskExecutionListResponse,
     BatchExecutionCreate, AIPlanResponse, ProgressResponse, TaskChatMessage
 )
+from api.agents import TaskChatAgent
 from api.services import TaskService, TaskExecutionService, ChatService, DocumentService
 from api.core import logger
 
@@ -416,16 +417,11 @@ async def task_chat(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
         
         logger.info(f"用户 {current_user.id} 与任务 {message.task_id} 对话: {message.input}")
-        
-        # 这里可以集成TaskAgent进行任务相关的对话处理
-
-        child_task_context = __sub_task_context([t for t in task_service.get_child_tasks(message.task_id) if t.status != GoalStatus.CANCELLED.value ])
-
-       
+ 
         # 接入目标提示词 进行对话
-        chat_service = ChatService(next(get_db()),current_user.id)
-    
-        return StreamingResponse(chat_service.chat_with_task_info(contxt,child_task_context,message.input), media_type="text/event-stream")
+        task_chat_agent = TaskChatAgent(current_user.id,message.task_id)
+
+        return StreamingResponse(task_chat_agent.ask_stream(message.input), media_type="text/event-stream")
     except HTTPException:
         raise
     except Exception as e:
